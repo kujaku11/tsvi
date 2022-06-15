@@ -1,0 +1,10 @@
+cytoolz
+pendulum
+loguru
+panel
+polars
+pandas
+holoviews
+datashader
+
+[all]

@@ -1,0 +1,13 @@
+setup.py
+tsvi.egg-info/PKG-INFO
+tsvi.egg-info/SOURCES.txt
+tsvi.egg-info/dependency_links.txt
+tsvi.egg-info/requires.txt
+tsvi.egg-info/top_level.txt
+tsviewer/__init__.py
+tsviewer/core.py
+tsviewer/plots.py
+tsviewer/datasources/__init__.py
+tsviewer/datasources/csv.py
+tsviewer/datasources/polarutils.py
+tsviewer/datasources/tables.py
