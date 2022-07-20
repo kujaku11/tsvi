@@ -3,14 +3,21 @@ from itertools import chain
 from typing import List, Dict
 
 install_requires=[
+    "bokeh",
+    "param",
+    "toolz",
     "cytoolz",
     "pendulum",
     "loguru",
     "panel",
+    "h5py",
+    "numpy",
     "polars",
     "pandas",
     "holoviews",
     "datashader",
+    "mth5",
+    "mt_metadata"
 ]
 
 extras_require: Dict[str, List[str]] = {
