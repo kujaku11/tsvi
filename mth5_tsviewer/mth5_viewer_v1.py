@@ -21,6 +21,7 @@ import matplotlib as plt
 import numpy as np
 import pandas as pd
 import panel as pn
+import psutil
 import time
 import xarray
 
@@ -99,9 +100,12 @@ def memory_usage_widget():
     )
     return memory_usage
 
+
 class Tsvi(template):
 
-    #streaming_resources = param.Boolean(default=False)
+    cpu_usage = cpu_usage_widget()
+    memory_usage = memory_usage_widget()
+    streaming_resources = False
         
         
     def __init__(self, *args, **kwargs):
@@ -193,13 +197,13 @@ class Tsvi(template):
 
         
         """Sidebar"""
-        #self.sidebar.append(self.cpu_usage)
-        #self.sidebar.append(self.memory_usage)
+        self.sidebar.append(self.cpu_usage)
+        self.sidebar.append(self.memory_usage)
         self.sidebar.append(self.datashade_checkbox)
         self.sidebar.append(self.shared_axes_checkbox)
         self.sidebar.append(self.clear_plots_button)
         self.sidebar.append(self.clear_channels_button)
-        #self.start_resource_stream()
+        self.start_resource_stream()
         
         
         """Button on_clicks"""
@@ -212,17 +216,18 @@ class Tsvi(template):
         
     
     
-  #  def start_resource_stream(self):
-  #      if self.streaming_resources:
-  #          retur
-  #      def resouce_usage_psutil():
-  #          return psutil.virtual_memory().percent, psutil.cpu_percent()
-  #      def stream_resources():
-  #          mem, cpu = resouce_usage_psutil()
-  #          self.cpu_usage.value = cpu
-  #          self.memory_usage.value = mem
-  #      pn.state.add_periodic_callback(stream_resources, period=1000, count=None)
-  #      self.streaming_resources = True
+    def start_resource_stream(self):
+        if self.streaming_resources:
+            return
+        def resouce_usage_psutil():
+            return psutil.virtual_memory().percent, psutil.cpu_percent()
+        def stream_resourcesx():
+            mem, cpu = resouce_usage_psutil()
+            self.cpu_usage.value = cpu
+            self.memory_usage.value = mem
+        print("sdfjsldijnzsjn")
+        pn.state.add_periodic_callback(stream_resourcesx, period=1000, count=None)
+        self.streaming_resources = True
      
     
     def update_channels(self, *args, **kwargs):
