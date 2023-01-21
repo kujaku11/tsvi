@@ -84,7 +84,8 @@ class Tsvi(template):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        
+        self.plot_width = kwargs.get("plot_width", 900)
+        self.plot_height = kwargs.get("plot_height", 450)
         self.cache = {}
         self.files = pn.widgets.FileSelector(name = "Files",
                                              directory = "~",
@@ -278,8 +279,8 @@ class Tsvi(template):
                         data = data - data.mean()
                     ###Cut Here###
                     plot = hvplot.hvPlot(data,
-                                         width = 900,
-                                         height = 450,
+                                         width = self.plot_width,
+                                         height = self.plot_height,
                                          ylabel = ylabel)
                     if self.plotting_library.value == "bokeh":
                         bound_plot = pn.bind(plot,
@@ -362,7 +363,7 @@ class Tsvi(template):
 # In[9]:
 
 
-tsvi = Tsvi()
+tsvi = Tsvi(plot_width=1000, plot_height=200)
 tsvi.show()
 
 
