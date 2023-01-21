@@ -82,18 +82,14 @@ class Tsvi(template):
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
         self.cache = {}
-        self.files = pn.widgets.FileSelector(name = "Files",
-                                             directory = "~",
-                                             file_pattern = "*.h5",
-                                             height = 550
-                                             )
+
         self.file_paths = {}
         self.xarrays = []
         
         
         """Checkboxes and Buttons"""
         self.plot_button           = pn.widgets.Button(name = "Plot", button_type = "primary")
-        self.select_button         = pn.widgets.Button(name = "Select Files", button_type = "primary")
+
         
 
         self.plotting_library      = pn.widgets.RadioButtonGroup(name = "Plotting Library",
@@ -128,22 +124,16 @@ class Tsvi(template):
         
         
         """Tab Creation"""
-        self.tab1 = pn.Column(self.files,
-                              self.select_button,
-                              name = "Folders")
-        self.tab2 = pn.Column(
-                    pn.Row(pn.Column(self.channels,
-                                     self.plot_button),
-                           pn.Column(self.plotting_library,
-                                     self.subtract_mean_checkbox),
-                           ),
+        tab2 = pn.Column(pn.Row(pn.Column(self.channels, self.plot_button),
+                         pn.Column(self.plotting_library, self.subtract_mean_checkbox),
+                                ),
                     self.summary_display,
                     name = "Channels")
-        self.tab3 = pn.Column(self.graphs,
+        tab3 = pn.Column(self.graphs,
                               name = "Plot")
-        self.tabs = pn.Tabs(self.tab1,
-                            self.tab2,
-                            self.tab3,
+        self.tabs = pn.Tabs(self.make_folders_tab(),
+                            tab2,
+                            tab3,
                             closable = False,
                             dynamic = False)
 
@@ -187,6 +177,18 @@ class Tsvi(template):
         self.sidebar.append(self.clear_plots_button)
         self.sidebar.append(self.clear_channels_button)
         self.start_resource_stream()
+
+    def make_folders_tab(self):
+        self.files = pn.widgets.FileSelector(name = "Files",
+                                             directory = "~",
+                                             file_pattern = "*.h5",
+                                             height = 550
+                                             )
+        self.select_button = pn.widgets.Button(name="Select Files",
+                                               button_type="primary")
+        tab = pn.Column(self.files, self.select_button, name = "Folders")
+        return tab
+
     
     def start_resource_stream(self):
         if self.streaming_resources:
