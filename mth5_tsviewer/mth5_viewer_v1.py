@@ -29,6 +29,10 @@ import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
 
+from helpers import memory_usage_widget
+from helpers import cpu_usage_widget
+
+
 
 # ipynb command
 #pn.extension("ipywidgets")
@@ -65,41 +69,13 @@ displayed_columns = ["survey", "station", "run",
                      #"units"
                     ]
 
-# Helper function
-# def plot_bokeh(xarray, shaded = False, shared = False):
-#     plot = xarray.hvplot(
-#                           width = 900,
-#                           height = 450,
-#                           datashade = shaded,
-#                           shared_axes = shared
-#                          )
-#     return plot
-
-
-def cpu_usage_widget():
-    cpu_usage = pn.indicators.Number(
-        name="CPU",
-        value=0,
-        format="{value}%",
-        colors=[(50, "green"), (75, "orange"), (100, "red")],
-        font_size="13pt",
-        title_size="8pt",
-        width=50,
-    )
-    return cpu_usage
-
-def memory_usage_widget():
-    memory_usage= pn.indicators.Number(
-        name="Memory",
-        value=0,
-        format="{value}%",
-        colors=[(50, "green"), (75, "orange"), (100, "red")],
-        font_size="13pt",
-        title_size="8pt",
-        width=50,
-    )
-    return memory_usage
-
+def make_relevant_files_list(channels_list):
+    used_files = []
+    for selected_channel in self.channels.value:
+        file_name = selected_channel.split("/")[0]
+        if file_name not in used_files:
+            used_files.append(file_name)
+    return used_files
 
 class Tsvi(template):
 
@@ -286,6 +262,7 @@ class Tsvi(template):
         hv.output(backend = self.plotting_library.value)
         used_files = []
         new_cards  = []
+
         for selected_channel in self.channels.value:
             file_name = selected_channel.split("/")[0]
             if file_name not in used_files:
