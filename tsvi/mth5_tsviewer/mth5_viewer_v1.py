@@ -55,10 +55,6 @@ TEMPLATES["grid"] = pn.template.FastGridTemplate
 template_key = "golden"
 template = TEMPLATES[template_key]
 
-
-RESOURCES_WIDGETS = ["cpu_usage", "memory_usage"]
-RESOURCES_WIDGETS = []
-
 # Configure the displayed columns in the Channels Tab
 displayed_columns = ["survey", "station", "run",
                      #"latitude", "longitude", "elevation",
