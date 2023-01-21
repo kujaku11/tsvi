@@ -25,6 +25,25 @@ def memory_usage_widget():
     )
     return memory_usage
 
+def list_h5s_to_plot(channels_list):
+    """
+
+    Parameters
+    ----------
+    channels_list: string represenation of the data paths asscocated with channels
+        May need to be modified to work on windows, if so, we should
+        cast them to path objects and take [Path(x).name for x in channels_list]
+
+    Returns
+    -------
+
+    """
+    used_files = []
+    for selected_channel in channels_list:
+        file_name = selected_channel.split("/")[0]
+        if file_name not in used_files:
+            used_files.append(file_name)
+    return used_files
 
 
 

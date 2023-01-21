@@ -29,8 +29,9 @@ import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
 
-from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
+from tsvi.mth5_tsviewer.helpers import list_h5s_to_plot
+from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 
 
 
@@ -66,14 +67,6 @@ displayed_columns = ["survey", "station", "run",
                     ]
 
 
-
-def make_relevant_files_list(channels_list):
-    used_files = []
-    for selected_channel in self.channels.value:
-        file_name = selected_channel.split("/")[0]
-        if file_name not in used_files:
-            used_files.append(file_name)
-    return used_files
 
 class Tsvi(template):
 
@@ -237,11 +230,7 @@ class Tsvi(template):
     
     def mth5s_to_xarrays(self):
         #TODO: Look in to chunking at this level check if possible to extract slice at channel level, similar to run level
-        used_files = []
-        for selected_channel in self.channels.value:
-            file_name = selected_channel.split("/")[0]
-            if file_name not in used_files:
-                used_files.append(file_name)
+        used_files = list_h5s_to_plot(self.channels.value)
         for file in used_files:
             m = MTH5()
             m.open_mth5(self.file_paths[file], mode = "r")
@@ -259,13 +248,8 @@ class Tsvi(template):
 
     def make_plots(self):
         hv.output(backend = self.plotting_library.value)
-        used_files = []
         new_cards  = []
-
-        for selected_channel in self.channels.value:
-            file_name = selected_channel.split("/")[0]
-            if file_name not in used_files:
-                used_files.append(file_name)
+        used_files = list_h5s_to_plot(self.channels.value)
         for file in used_files:
             m = MTH5()
             m.open_mth5(self.file_paths[file], mode = "r")
