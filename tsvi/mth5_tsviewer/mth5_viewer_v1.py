@@ -67,6 +67,8 @@ displayed_columns = ["survey", "station", "run",
                     ]
 
 
+def create_button(button_type):
+    pass
 
 class Tsvi(template):
 
@@ -94,10 +96,6 @@ class Tsvi(template):
         self.select_button         = pn.widgets.Button(name = "Select Files", button_type = "primary")
         
 
-        self.datashade_checkbox    = pn.widgets.Checkbox(name = "Datashade",
-                                                         value = True)
-        self.shared_axes_checkbox  = pn.widgets.Checkbox(name = "Shared Axes",
-                                                         value = True)
         self.plotting_library      = pn.widgets.RadioButtonGroup(name = "Plotting Library",
                                                         options = ["bokeh",
                                                                    "matplotlib", 
@@ -107,13 +105,7 @@ class Tsvi(template):
                                                         width = 200)
         self.subtract_mean_checkbox= pn.widgets.Checkbox(name = "Subtract Mean",
                                                          value = True)
-        self.clear_plots_button    = pn.widgets.Button(name = "Clear Plots",
-                                                       button_type = "danger",
-                                                       width = 200)
-        self.clear_channels_button = pn.widgets.Button(name = "Clear Channels",
-                                                       button_type = "danger",
-                                                       width = 200)
-                                                       
+
         
         
         """Channel Tab Items"""
@@ -165,12 +157,7 @@ class Tsvi(template):
 
         
         """Sidebar"""
-        self.sidebar.append(self.cpu_usage)
-        self.sidebar.append(self.memory_usage)
-        self.sidebar.append(self.datashade_checkbox)
-        self.sidebar.append(self.shared_axes_checkbox)
-        self.sidebar.append(self.clear_plots_button)
-        self.sidebar.append(self.clear_channels_button)
+        self.make_sidebar()
         self.start_resource_stream()
         
         
@@ -182,7 +169,24 @@ class Tsvi(template):
         self.clear_channels_button.on_click(self.clear_channels)
         return
         
-    
+    def make_sidebar(self):
+        #Define Checkboxes and Buttons
+        self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
+        self.shared_axes_checkbox = pn.widgets.Checkbox(name="Shared Axes", value=True)
+        self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
+                                                    button_type="danger",
+                                                    width = 200)
+        self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
+                                                       button_type="danger",
+                                                       width=200)
+        # Set up Layout
+        self.sidebar.append(self.cpu_usage)
+        self.sidebar.append(self.memory_usage)
+        self.sidebar.append(self.datashade_checkbox)
+        self.sidebar.append(self.shared_axes_checkbox)
+        self.sidebar.append(self.clear_plots_button)
+        self.sidebar.append(self.clear_channels_button)
+        self.start_resource_stream()
     
     def start_resource_stream(self):
         if self.streaming_resources:
@@ -193,7 +197,6 @@ class Tsvi(template):
             mem, cpu = resouce_usage_psutil()
             self.cpu_usage.value = cpu
             self.memory_usage.value = mem
-        print("sdfjsldijnzsjn")
         pn.state.add_periodic_callback(stream_resourcesx, period=1000, count=None)
         self.streaming_resources = True
      
@@ -250,6 +253,10 @@ class Tsvi(template):
         hv.output(backend = self.plotting_library.value)
         new_cards  = []
         used_files = list_h5s_to_plot(self.channels.value)
+        # The following for loop doesn't need 3 layers,
+        # Better may be to use a dataframe with one column for "file", "station",
+        # "run", "channel"
+	# This would also allow group-by plotting, etc.
         for file in used_files:
             m = MTH5()
             m.open_mth5(self.file_paths[file], mode = "r")
@@ -347,7 +354,7 @@ class Tsvi(template):
 # In[9]:
 
 
-tsvi = Tsvi(plot_width=1000, plot_height=200)
+tsvi = Tsvi(plot_width=900, plot_height=200)
 tsvi.show()
 
 
