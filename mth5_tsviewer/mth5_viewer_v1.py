@@ -66,14 +66,14 @@ displayed_columns = ["survey", "station", "run",
                     ]
 
 # Helper function
-def plot_bokeh(xarray, shaded = False, shared = False):
-    plot = xarray.hvplot(
-                          width = 900,
-                          height = 450,
-                          datashade = shaded,
-                          shared_axes = shared
-                         )
-    return plot
+# def plot_bokeh(xarray, shaded = False, shared = False):
+#     plot = xarray.hvplot(
+#                           width = 900,
+#                           height = 450,
+#                           datashade = shaded,
+#                           shared_axes = shared
+#                          )
+#     return plot
 
 
 def cpu_usage_widget():
