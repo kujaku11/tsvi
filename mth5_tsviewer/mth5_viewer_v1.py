@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
+"""
+There are four main Panels in this UI
+- Sidebar
+- Folders
+- Channels
+- Plot
 
+"""
 #get_ipython().run_line_magic('matplotlib', 'widget')
 
 from matplotlib.backends.backend_agg import FigureCanvas
@@ -30,26 +37,24 @@ hv.extension("matplotlib")
 
 xarray.set_options(keep_attrs = True)
 
-
+# Make template choice dictionary
+# More information about template choices and functionality is here:
+# https://panel.holoviz.org/user_guide/Templates.html
 TEMPLATES = {}
 TEMPLATES["bootstrap"] = pn.template.BootstrapTemplate
 TEMPLATES["fast"] = pn.template.FastListTemplate
 TEMPLATES["golden"] = pn.template.GoldenTemplate
 TEMPLATES["grid"] = pn.template.FastGridTemplate
 
-
-# In[5]:
-
-
+# Define Template for this instance
 template_key = "golden"
 template = TEMPLATES[template_key]
 
 
-# ## Define Displayed Columns
+RESOURCES_WIDGETS = ["cpu_usage", "memory_usage"]
+RESOURCES_WIDGETS = []
 
-# In[6]:
-
-
+# Configure the displayed columns in the Channels Tab
 displayed_columns = ["survey", "station", "run",
                      #"latitude", "longitude", "elevation",
                      "component",
@@ -59,10 +64,7 @@ displayed_columns = ["survey", "station", "run",
                      #"units"
                     ]
 
-
-# In[7]:
-
-
+# Helper function
 def plot_bokeh(xarray, shaded = False, shared = False):
     plot = xarray.hvplot(
                           width = 900,
@@ -73,36 +75,32 @@ def plot_bokeh(xarray, shaded = False, shared = False):
     return plot
 
 
-# In[8]:
+def cpu_usage_widget():
+    cpu_usage = pn.indicators.Number(
+        name="CPU",
+        value=0,
+        format="{value}%",
+        colors=[(50, "green"), (75, "orange"), (100, "red")],
+        font_size="13pt",
+        title_size="8pt",
+        width=50,
+    )
+    return cpu_usage
 
+def memory_usage_widget():
+    memory_usage= pn.indicators.Number(
+        name="Memory",
+        value=0,
+        format="{value}%",
+        colors=[(50, "green"), (75, "orange"), (100, "red")],
+        font_size="13pt",
+        title_size="8pt",
+        width=50,
+    )
+    return memory_usage
 
 class Tsvi(template):
-    
 
-    
-
-
-    
-    #cpu_usage             = pn.indicators.Number(
-    #                                             name="CPU",
-    #                                             value=0,
-    #                                             format="{value}%",
-    #                                             colors=[(50, "green"), (75, "orange"), (100, "red")],
-    #                                             font_size="13pt",
-    #                                             title_size="8pt",
-    #                                             width=50,
-    #                                         )
-    #
-    #memory_usage          = pn.indicators.Number(
-    #                                             name="Memory",
-    #                                             value=0,
-    #                                             format="{value}%",
-    #                                             colors=[(50, "green"), (75, "orange"), (100, "red")],
-    #                                             font_size="13pt",
-    #                                             title_size="8pt",
-    #                                             width=50,
-    #                                         )
-    #
     #streaming_resources = param.Boolean(default=False)
         
         
@@ -403,43 +401,18 @@ two different plot objects created for each plot and doubles the loading time fo
 
 
 # In[16]:
+#
+#
+# tsvi.xarrays
 
-
-tsvi.xarrays
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[110]:
 
 
 #%matplotlib
 #import matplotlib.pyplot as plt
 
 
-# In[127]:
-
-
 #hv.output(backend = "bokeh")
-
-
-# In[123]:
-
-
 #pn.extension("ipywidgets")
-
-
-# In[ ]:
 
 
 
