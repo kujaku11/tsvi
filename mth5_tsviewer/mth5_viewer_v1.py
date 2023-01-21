@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[1]:
-
-
 #get_ipython().run_line_magic('matplotlib', 'widget')
+
 from matplotlib.backends.backend_agg import FigureCanvas
 from matplotlib.figure import Figure
 
@@ -23,24 +21,14 @@ import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
 
-from matplotlib import cm
 
-
-# In[2]:
-
-
+# ipynb command
 #pn.extension("ipywidgets")
+
 hv.extension("bokeh")
 hv.extension("matplotlib")
 
-
-# In[3]:
-
-
 xarray.set_options(keep_attrs = True)
-
-
-# In[4]:
 
 
 TEMPLATES = {}
