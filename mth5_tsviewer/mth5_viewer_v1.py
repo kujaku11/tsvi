@@ -5,24 +5,25 @@
 
 
 #get_ipython().run_line_magic('matplotlib', 'widget')
-import panel as pn
-import numpy as np
-import pandas as pd
-import holoviews as hv
-import matplotlib as plt
+from matplotlib.backends.backend_agg import FigureCanvas
 from matplotlib.figure import Figure
-import time
+
 import bokeh
-import xarray
+import holoviews as hv
 import hvplot
 import hvplot.xarray
+import matplotlib as plt
+import numpy as np
+import pandas as pd
+import panel as pn
+import time
+import xarray
+
+import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
-import mt_metadata
 
-from matplotlib.figure import Figure
 from matplotlib import cm
-from matplotlib.backends.backend_agg import FigureCanvas
 
 
 # In[2]:
