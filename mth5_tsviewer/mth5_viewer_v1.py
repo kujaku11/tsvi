@@ -5,7 +5,6 @@
 
 
 #get_ipython().run_line_magic('matplotlib', 'widget')
-import param
 import panel as pn
 import numpy as np
 import pandas as pd
