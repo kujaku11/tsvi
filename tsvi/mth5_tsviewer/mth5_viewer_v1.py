@@ -29,8 +29,8 @@ import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
 
-from helpers import memory_usage_widget
-from helpers import cpu_usage_widget
+from tsvi.mth5_tsviewer.helpers import memory_usage_widget
+from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
 
 
 
@@ -68,6 +68,8 @@ displayed_columns = ["survey", "station", "run",
                      #"azimuth", "tilt",
                      #"units"
                     ]
+
+
 
 def make_relevant_files_list(channels_list):
     used_files = []
