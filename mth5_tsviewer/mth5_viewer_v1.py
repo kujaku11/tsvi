@@ -318,10 +318,11 @@ class Tsvi(template):
                     annotate_button       = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
                     invert_button         = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
                     
-                    #def invert(self, *args, **params):
+                    # Fails becuse "event" not defined below
+                    # def invert(self, *args, **params):
                     #   data = -1 * data
-                    
-                    #invert_button.on_click(invert(event, data))
+                    #
+                    # invert_button.on_click(invert(event, data))
                     controls = pn.Column(annotate_button,
                                        invert_button,
                                        sizing_mode = "fixed", width = 200,)
