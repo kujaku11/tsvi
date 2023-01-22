@@ -74,32 +74,19 @@ class Tsvi(template):
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
-        self.cache = {}
 
+        self.cache = {}
         self.file_paths = {}
         self.xarrays = []
         
-        
-        """Plot Tab Items"""
-        self.plot_cards = []
-        self.graphs = pn.Column()
-        
-
-        """Tab Creation"""
-        tab2 = self.make_channels_tab()
-        # tab2 = pn.Column(pn.Row(pn.Column(self.channels, self.plot_button),
-        #                  pn.Column(self.plotting_library, self.subtract_mean_checkbox),
-        #                         ),
-        #             self.summary_display,
-        #             name = "Channels")
-        tab3 = pn.Column(self.graphs,
-                              name = "Plot")
+        # Tab Creation
         self.tabs = pn.Tabs(self.make_folders_tab(),
-                            tab2,
-                            tab3,
+                            self.make_channels_tab(),
+                            self.make_plots_tab(),
                             closable = False,
                             dynamic = False)
 
+        # Annotator
         self.annotator = hv.annotate.instance()
         self.note_boxes = self.annotator(hv.Rectangles(data = None).opts(alpha = 0.5))
 
@@ -148,7 +135,6 @@ class Tsvi(template):
         tab = pn.Column(self.files, self.select_button, name = "Folders")
         return tab
 
-
     def make_channels_tab(self):
         self.channels = pn.widgets.MultiSelect(objects = [],
                                                name = "Channels",
@@ -172,11 +158,17 @@ class Tsvi(template):
 
         channel_and_plot = pn.Column(self.channels, self.plot_button)
         controls = pn.Column(self.plotting_library, self.subtract_mean_checkbox)
-        tab = pn.Column(pn.Row(channel_and_plot, controls,), self.summary_display,
-                 name = "Channels")
+
+        tab = pn.Column(pn.Row(channel_and_plot, controls,),
+                        self.summary_display,
+                        name="Channels")
         return tab
 
-
+    def make_plots_tab(self):
+        self.plot_cards = []
+        self.graphs = pn.Column()
+        tab = pn.Column(self.graphs, name="Plot")
+        return tab
 
 
     def start_resource_stream(self):
