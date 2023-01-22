@@ -96,15 +96,7 @@ class Tsvi(template):
         self.make_sidebar()
         self.start_resource_stream()
         
-        
-        """Button on_clicks"""
-        self.select_button.on_click(self.update_channels)
-        self.plot_button.on_click(self.make_and_display_plots)
-        self.channels.link(self.summary_display, callbacks = {"value": self.display_channel_summary})
-        self.clear_plots_button.on_click(self.clear_plots)
-        self.clear_channels_button.on_click(self.clear_channels)
-        return
-        
+
     def make_sidebar(self):
         #Define Checkboxes and Buttons
         self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
@@ -112,9 +104,11 @@ class Tsvi(template):
         self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
                                                     button_type="danger",
                                                     width = 200)
+        self.clear_plots_button.on_click(self.clear_plots)
         self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
                                                        button_type="danger",
                                                        width=200)
+        self.clear_channels_button.on_click(self.clear_channels)
         # Set up Layout
         self.sidebar.append(self.cpu_usage)
         self.sidebar.append(self.memory_usage)
@@ -132,7 +126,10 @@ class Tsvi(template):
                                              )
         self.select_button = pn.widgets.Button(name="Select Files",
                                                button_type="primary")
+        self.select_button.on_click(self.update_channels)
+
         tab = pn.Column(self.files, self.select_button, name = "Folders")
+
         return tab
 
     def make_channels_tab(self):
@@ -140,10 +137,12 @@ class Tsvi(template):
                                                name = "Channels",
                                                height = 200)
         self.plot_button = pn.widgets.Button(name = "Plot", button_type = "primary")
+        self.plot_button.on_click(self.make_and_display_plots)
         self.channel_summary = pd.DataFrame(columns = displayed_columns)
         self.summary_display = pn.widgets.DataFrame(self.channel_summary,
                                                     height = 500,
                                                     width = 1000)
+        self.channels.link(self.summary_display, callbacks = {"value": self.display_channel_summary})
 
         # Controls
         self.plotting_library = pn.widgets.RadioButtonGroup(name="Plotting Library",
