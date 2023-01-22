@@ -46,6 +46,17 @@ def list_h5s_to_plot(channels_list):
     return used_files
 
 
+def channel_summary_columns_to_display():
+    # Configure the displayed columns in the Channels Tab
+    displayed_columns = ["survey", "station", "run",
+                         #"latitude", "longitude", "elevation",
+                         "component",
+                         "start", "end", "n_samples", "sample_rate",
+                         "measurement_type",
+                         #"azimuth", "tilt",
+                         #"units"
+                         ]
+    return displayed_columns
 
 # def plot_bokeh(xarray, shaded = False, shared = False):
 #     plot = xarray.hvplot(

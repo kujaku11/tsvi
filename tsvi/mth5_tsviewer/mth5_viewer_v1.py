@@ -29,6 +29,7 @@ import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
 
+from tsvi.mth5_tsviewer.helpers import channel_summary_columns_to_display
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
 from tsvi.mth5_tsviewer.helpers import list_h5s_to_plot
 from tsvi.mth5_tsviewer.helpers import memory_usage_widget
@@ -56,15 +57,7 @@ TEMPLATES["grid"] = pn.template.FastGridTemplate
 template_key = "golden"
 template = TEMPLATES[template_key]
 
-# Configure the displayed columns in the Channels Tab
-displayed_columns = ["survey", "station", "run",
-                     #"latitude", "longitude", "elevation",
-                     "component",
-                     "start", "end", "n_samples", "sample_rate",
-                     "measurement_type",
-                     #"azimuth", "tilt",
-                     #"units"
-                    ]
+displayed_columns = channel_summary_columns_to_display()
 
 
 def create_button(button_type):
@@ -87,48 +80,18 @@ class Tsvi(template):
         self.xarrays = []
         
         
-        """Checkboxes and Buttons"""
-        self.plot_button           = pn.widgets.Button(name = "Plot", button_type = "primary")
-
-        
-
-        self.plotting_library      = pn.widgets.RadioButtonGroup(name = "Plotting Library",
-                                                        options = ["bokeh",
-                                                                   "matplotlib", 
-                                                                   #"plotly"
-                                                                  ],
-                                                        button_type = "primary",
-                                                        width = 200)
-        self.subtract_mean_checkbox= pn.widgets.Checkbox(name = "Subtract Mean",
-                                                         value = True)
-
-        
-        
-        """Channel Tab Items"""
-        self.channels = pn.widgets.MultiSelect(objects = [],
-                                               name = "Channels",
-                                               height = 200)
-        #self.channel_preview = pn.widgets.Select(options = self.channels.value,
-        #                                        name = "Channel info",
-        #                                        placeholder = "Please select a channel")
-        #self.channels.link(self.channel_preview, value = "options")
-        self.channel_summary = pd.DataFrame(columns = displayed_columns)
-        self.summary_display = pn.widgets.DataFrame(self.channel_summary, height = 500, width = 1000)
-        
-        
-        
         """Plot Tab Items"""
         self.plot_cards = []
         self.graphs = pn.Column()
         
-        
-        
+
         """Tab Creation"""
-        tab2 = pn.Column(pn.Row(pn.Column(self.channels, self.plot_button),
-                         pn.Column(self.plotting_library, self.subtract_mean_checkbox),
-                                ),
-                    self.summary_display,
-                    name = "Channels")
+        tab2 = self.make_channels_tab()
+        # tab2 = pn.Column(pn.Row(pn.Column(self.channels, self.plot_button),
+        #                  pn.Column(self.plotting_library, self.subtract_mean_checkbox),
+        #                         ),
+        #             self.summary_display,
+        #             name = "Channels")
         tab3 = pn.Column(self.graphs,
                               name = "Plot")
         self.tabs = pn.Tabs(self.make_folders_tab(),
@@ -139,14 +102,10 @@ class Tsvi(template):
 
         self.annotator = hv.annotate.instance()
         self.note_boxes = self.annotator(hv.Rectangles(data = None).opts(alpha = 0.5))
-        
-        
-        
 
         self.main.append(self.tabs)
-
         
-        """Sidebar"""
+        # Sidebar
         self.make_sidebar()
         self.start_resource_stream()
         
@@ -189,7 +148,37 @@ class Tsvi(template):
         tab = pn.Column(self.files, self.select_button, name = "Folders")
         return tab
 
-    
+
+    def make_channels_tab(self):
+        self.channels = pn.widgets.MultiSelect(objects = [],
+                                               name = "Channels",
+                                               height = 200)
+        self.plot_button = pn.widgets.Button(name = "Plot", button_type = "primary")
+        self.channel_summary = pd.DataFrame(columns = displayed_columns)
+        self.summary_display = pn.widgets.DataFrame(self.channel_summary,
+                                                    height = 500,
+                                                    width = 1000)
+
+        # Controls
+        self.plotting_library = pn.widgets.RadioButtonGroup(name="Plotting Library",
+                                                            options = ["bokeh",
+                                                                       "matplotlib",
+                                                                       #"plotly"
+                                                                       ],
+                                                            button_type = "primary",
+                                                            width = 200)
+        self.subtract_mean_checkbox= pn.widgets.Checkbox(name = "Subtract Mean",
+                                                         value = True)
+
+        channel_and_plot = pn.Column(self.channels, self.plot_button)
+        controls = pn.Column(self.plotting_library, self.subtract_mean_checkbox)
+        tab = pn.Column(pn.Row(channel_and_plot, controls,), self.summary_display,
+                 name = "Channels")
+        return tab
+
+
+
+
     def start_resource_stream(self):
         if self.streaming_resources:
             return
