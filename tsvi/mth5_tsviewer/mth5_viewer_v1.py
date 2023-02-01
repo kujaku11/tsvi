@@ -83,12 +83,12 @@ class Tsvi(template):
         self.tabs = pn.Tabs(self.make_folders_tab(),
                             self.make_channels_tab(),
                             self.make_plots_tab(),
-                            closable = False,
-                            dynamic = False)
+                            closable=False,
+                            dynamic=False)
 
         # Annotator
         self.annotator = hv.annotate.instance()
-        self.note_boxes = self.annotator(hv.Rectangles(data = None).opts(alpha = 0.5))
+        self.note_boxes = self.annotator(hv.Rectangles(data=None).opts(alpha=0.5))
 
         self.main.append(self.tabs)
         
@@ -98,16 +98,17 @@ class Tsvi(template):
         
 
     def make_sidebar(self):
+        button_width = 150
         #Define Checkboxes and Buttons
         self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
         self.shared_axes_checkbox = pn.widgets.Checkbox(name="Shared Axes", value=True)
         self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
                                                     button_type="danger",
-                                                    width = 200)
+                                                    width=button_width)
         self.clear_plots_button.on_click(self.clear_plots)
         self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
                                                        button_type="danger",
-                                                       width=200)
+                                                       width=button_width)
         self.clear_channels_button.on_click(self.clear_channels)
         # Set up Layout
         self.sidebar.append(self.cpu_usage)
@@ -119,30 +120,30 @@ class Tsvi(template):
         self.start_resource_stream()
 
     def make_folders_tab(self):
-        self.files = pn.widgets.FileSelector(name = "Files",
-                                             directory = "~",
-                                             file_pattern = "*.h5",
-                                             height = 550
+        self.files = pn.widgets.FileSelector(name="Files",
+                                             directory="~",
+                                             file_pattern="*.h5",
+                                             height=550,
                                              )
         self.select_button = pn.widgets.Button(name="Select Files",
                                                button_type="primary")
         self.select_button.on_click(self.update_channels)
 
-        tab = pn.Column(self.files, self.select_button, name = "Folders")
+        tab = pn.Column(self.files, self.select_button, name="Folders")
 
         return tab
 
     def make_channels_tab(self):
-        self.channels = pn.widgets.MultiSelect(objects = [],
-                                               name = "Channels",
-                                               height = 200)
-        self.plot_button = pn.widgets.Button(name = "Plot", button_type = "primary")
+        self.channels = pn.widgets.MultiSelect(objects=[],
+                                               name="Channels",
+                                               height=200)
+        self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
         self.channel_summary = pd.DataFrame(columns = displayed_columns)
         self.summary_display = pn.widgets.DataFrame(self.channel_summary,
-                                                    height = 500,
-                                                    width = 1000)
-        self.channels.link(self.summary_display, callbacks = {"value": self.display_channel_summary})
+                                                    height=500,
+                                                    width=1000)
+        self.channels.link(self.summary_display, callbacks={"value": self.display_channel_summary})
 
         # Controls
         self.plotting_library = pn.widgets.RadioButtonGroup(name="Plotting Library",
@@ -150,10 +151,10 @@ class Tsvi(template):
                                                                        "matplotlib",
                                                                        #"plotly"
                                                                        ],
-                                                            button_type = "primary",
-                                                            width = 200)
-        self.subtract_mean_checkbox= pn.widgets.Checkbox(name = "Subtract Mean",
-                                                         value = True)
+                                                            button_type="primary",
+                                                            width=200)
+        self.subtract_mean_checkbox = pn.widgets.Checkbox(name="Subtract Mean",
+                                                         value=True)
 
         channel_and_plot = pn.Column(self.channels, self.plot_button)
         controls = pn.Column(self.plotting_library, self.subtract_mean_checkbox)
@@ -186,13 +187,14 @@ class Tsvi(template):
     def update_channels(self, *args, **kwargs):
         new_channels = []
         for file_path in self.files.value:
-            file_name = file_path.split("/")[-1] #This might not work on Windows
+            file_name = file_path.split("/")[-1] # This might not work on Windows
             self.file_paths[file_name] = file_path
             m = MTH5()
             m.open_mth5(file_path, mode = "r")
             df = m.channel_summary.to_dataframe()
             m.close_mth5()
             df["file"] = file_name
+            # use pathlib.joinpath()
             df["channel_path"] = (df["file"] + "/" + df["station"] + "/" + df["run"] + "/" + df["component"])
             df.set_index("channel_path", inplace = True)
             self.cache[file_name] = df
@@ -232,13 +234,27 @@ class Tsvi(template):
                 xarray = xarray - xarray.mean()
 
     def make_plots(self):
+        # def get_card_controls():
+        #     annotate_button = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
+        #     invert_button = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
+        #
+        #     # Fails becuse "event" not defined below
+        #     # def invert(self, *args, **params):
+        #     #   data = -1 * data
+        #     #
+        #     # invert_button.on_click(invert(event, data))
+        #     controls = pn.Column(annotate_button,
+        #                          invert_button,
+        #                          sizing_mode = "fixed", width = 200,)
+        #     return controls
+
         hv.output(backend = self.plotting_library.value)
         new_cards  = []
         used_files = list_h5s_to_plot(self.channels.value)
         # The following for loop doesn't need 3 layers,
         # Better may be to use a dataframe with one column for "file", "station",
         # "run", "channel"
-	# This would also allow group-by plotting, etc.
+    	# This would also allow group-by plotting, etc.
         for file in used_files:
             m = MTH5()
             m.open_mth5(self.file_paths[file], mode = "r")
@@ -263,18 +279,22 @@ class Tsvi(template):
                         #bound_plot = data.hvplot()
                     elif self.plotting_library.value == "matplotlib":
                         fig = Figure(figsize = (8,6))
-                    
-                    annotate_button       = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
-                    invert_button         = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
-                    
+
+                    # Tricky bit here -- it would be nice of we could
+                    #access an element of the column by its name,
+                    # i.e. controls.annotate.onclick()
+                    # controls = get_card_controls()
+                    annotate_button = pn.widgets.Button(name="Annotate", button_type="primary", width=100)
+                    invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
+
                     # Fails becuse "event" not defined below
                     # def invert(self, *args, **params):
                     #   data = -1 * data
                     #
                     # invert_button.on_click(invert(event, data))
                     controls = pn.Column(annotate_button,
-                                       invert_button,
-                                       sizing_mode = "fixed", width = 200,)
+                             invert_button,
+                             sizing_mode = "fixed", width = 200,)
                     plot_pane = pn.Pane(bound_plot)
                     plot_tab = pn.Row(plot_pane,
                                       controls,
@@ -284,8 +304,9 @@ class Tsvi(template):
                     def annotate(self, *args, **params):
                         plot2 = hv.Curve(data)
                         notes = hv.annotate.instance()
-                        note_tab = pn.Row(notes.compose(plot2, (hv.Rectangles(data = None).opts(alpha = 0.5))),
-                                          name = "Annotate")
+                        note_tab = pn.Row(notes.compose(plot2,
+                                          (hv.Rectangles(data=None).opts(alpha=0.5))),
+                                          name="Annotate")
                         tabs.append(note_tab)
                         tabs.active = 1
                     
