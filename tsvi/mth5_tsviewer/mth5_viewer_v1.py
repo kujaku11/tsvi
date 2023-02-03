@@ -42,6 +42,7 @@ from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 hv.extension("bokeh")
 hv.extension("matplotlib")
 
+
 xarray.set_options(keep_attrs = True)
 
 # Make template choice dictionary
@@ -59,6 +60,7 @@ template = TEMPLATES[template_key]
 
 displayed_columns = channel_summary_columns_to_display()
 
+COLORMAP = "Magma"
 
 def create_button(button_type):
     pass
@@ -270,7 +272,8 @@ class Tsvi(template):
                     plot = hvplot.hvPlot(data,
                                          width = self.plot_width,
                                          height = self.plot_height,
-                                         ylabel = ylabel)
+                                         ylabel = ylabel,
+                                         cmap=COLORMAP)
                     if self.plotting_library.value == "bokeh":
                         bound_plot = pn.bind(plot,
                                              datashade = self.datashade_checkbox,
