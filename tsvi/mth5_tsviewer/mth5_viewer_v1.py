@@ -42,6 +42,7 @@ from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 hv.extension("bokeh")
 hv.extension("matplotlib")
 
+
 xarray.set_options(keep_attrs = True)
 
 # Make template choice dictionary
@@ -59,6 +60,7 @@ template = TEMPLATES[template_key]
 
 displayed_columns = channel_summary_columns_to_display()
 
+COLORMAP = "Magma"
 
 def create_button(button_type):
     pass
@@ -68,8 +70,8 @@ class Tsvi(template):
     cpu_usage = cpu_usage_widget()
     memory_usage = memory_usage_widget()
     streaming_resources = False
-        
-        
+
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
@@ -79,7 +81,7 @@ class Tsvi(template):
         self.file_paths = {}
         self.xarrays = []
         self.plots = {}
-        
+
         # Tab Creation
         self.tabs = pn.Tabs(self.make_folders_tab(),
                             self.make_channels_tab(),
@@ -92,11 +94,11 @@ class Tsvi(template):
         self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
 
         self.main.append(self.tabs)
-        
+
         # Sidebar
         self.make_sidebar()
         self.start_resource_stream()
-        
+
 
     def make_sidebar(self):
         button_width = 150
@@ -123,9 +125,9 @@ class Tsvi(template):
                                                     button_type="danger",
                                                     width=button_width)
         self.clear_notes_button.on_click(self.clear_notes)
-        
-        
-        
+
+
+
         # Set up Layout
         self.sidebar.append(self.cpu_usage)
         self.sidebar.append(self.memory_usage)
@@ -201,8 +203,8 @@ class Tsvi(template):
             self.memory_usage.value = mem
         pn.state.add_periodic_callback(stream_resourcesx, period=1000, count=None)
         self.streaming_resources = True
-     
-    
+
+
     def update_channels(self, *args, **kwargs):
         new_channels = []
         for file_path in self.files.value:
@@ -221,19 +223,19 @@ class Tsvi(template):
         self.channels.options = list(new_channels)
         self.tabs.active = 1
         return
-    
+
     def clear_channels(self, *args, **params):
         self.channels.options = list()
         return
-        
+
     def display_channel_summary(self, target,  event):
         display_df = pd.DataFrame()
         for channel in event.new:
             display_df = pd.concat([display_df,(tsvi.cache[channel.split("/")[0]].loc[[channel], displayed_columns])])
         target.value = display_df
         return
-    
-    
+
+
     def mth5s_to_xarrays(self):
         #TODO: Look in to chunking at this level check if possible to extract slice at channel level, similar to run level
         used_files = list_h5s_to_plot(self.channels.value)
@@ -246,7 +248,7 @@ class Tsvi(template):
                     data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
                     self.xarrays.append(data.rename(data.attrs["mth5_type"]))
             m.close_mth5()
-                    
+
     def preprocess_xarrays(self):
         for xarray in self.xarrays:
             if self.subtract_mean_checkbox.value == True:
@@ -323,7 +325,7 @@ class Tsvi(template):
                     note_tab = pn.Pane(self.annotator.compose(plot.line().opts(width = 700, height = 200), self.note_layout))
                     tabs = pn.Tabs(plot_tab,
                                    note_tab)
-                    
+
                     #def annotate(annotator, plot, tabs, note_layout, *args, **params):
                     #        note_tab = pn.Pane(annotator.compose(plot.line().opts(width = 700, height = 200), note_layout))
                     #        tabs.append(note_tab)
@@ -334,23 +336,23 @@ class Tsvi(template):
                     #                                  note_layout = self.note_layout.opts(alpha = 0.5)
                     #                                 )
                     #                       )
-                    
-                    
+
+
                     new_card = pn.Card(tabs,
                                        title = selected_channel)
-                    
+
                     new_cards.append(new_card)
             m.close_mth5()
         self.plot_cards = new_cards
         return
 
-    
-    
+
+
     def display_plots(self):
         for plot in self.plot_cards:
             self.graphs.append(plot)
         return
-        
+
     def make_and_display_plots(self, *args, **kwargs):
         self.tabs.active = 2
         self.make_plots()
@@ -359,31 +361,31 @@ class Tsvi(template):
         return
 
     def clear_plots(self, event):
-        self.xarrays = [] 
+        self.xarrays = []
         old_graphs = self.graphs
         self.graphs.objects = []
         del old_graphs.objects[:]
         self.graphs.objects = []
         del self.plot_cards[:]
-        
+
     def save_notes(self, event):
         #Save notes from annotator dataframe to csv
         return
-    
+
     def load_notes(self, event):
         return
 
     def clear_notes(self, event):
         #Clear annotator dataframe
         return
-    
+
     def annotate(self, data, *args, **params):
         plot2 = hv.Curve(data)
         note_tab = pn.Pane(self.annotator.compose(plot2, self.note_layout))
         tabs.append(note_tab)
         tabs.active = 1
-            
-    
+
+
 
 
 # In[9]:
@@ -421,7 +423,3 @@ two different plot objects created for each plot and doubles the loading time fo
 
 #hv.output(backend = "bokeh")
 #pn.extension("ipywidgets")
-
-
-
-
