@@ -78,6 +78,7 @@ class Tsvi(template):
         self.cache = {}
         self.file_paths = {}
         self.xarrays = []
+        self.plots = {}
         
         # Tab Creation
         self.tabs = pn.Tabs(self.make_folders_tab(),
@@ -88,7 +89,7 @@ class Tsvi(template):
 
         # Annotator
         self.annotator = hv.annotate.instance()
-        self.note_boxes = self.annotator(hv.Rectangles(data=None).opts(alpha=0.5))
+        self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
 
         self.main.append(self.tabs)
         
@@ -110,6 +111,21 @@ class Tsvi(template):
                                                        button_type="danger",
                                                        width=button_width)
         self.clear_channels_button.on_click(self.clear_channels)
+        self.save_notes_button = pn.widgets.Button(name="Save Notes",
+                                                   button_type="success",
+                                                   width=button_width)
+        self.save_notes_button.on_click(self.save_notes)
+        self.load_notes_button = pn.widgets.Button(name="Save Notes",
+                                                   button_type="success",
+                                                   width=button_width)
+        self.load_notes_button.on_click(self.load_notes)
+        self.clear_notes_button = pn.widgets.Button(name="Clear Notes",
+                                                    button_type="danger",
+                                                    width=button_width)
+        self.clear_notes_button.on_click(self.clear_notes)
+        
+        
+        
         # Set up Layout
         self.sidebar.append(self.cpu_usage)
         self.sidebar.append(self.memory_usage)
@@ -117,6 +133,9 @@ class Tsvi(template):
         self.sidebar.append(self.shared_axes_checkbox)
         self.sidebar.append(self.clear_plots_button)
         self.sidebar.append(self.clear_channels_button)
+        self.sidebar.append(self.save_notes_button)
+        self.sidebar.append(self.load_notes_button)
+        self.sidebar.append(self.clear_notes_button)
         self.start_resource_stream()
 
     def make_folders_tab(self):
@@ -270,7 +289,9 @@ class Tsvi(template):
                     plot = hvplot.hvPlot(data,
                                          width = self.plot_width,
                                          height = self.plot_height,
+                                         cmap = 'magma',
                                          ylabel = ylabel)
+                    self.plots[selected_channel] = plot
                     if self.plotting_library.value == "bokeh":
                         bound_plot = pn.bind(plot,
                                              datashade = self.datashade_checkbox,
@@ -299,18 +320,20 @@ class Tsvi(template):
                     plot_tab = pn.Row(plot_pane,
                                       controls,
                                       name = run + "/" + channel)
-                    tabs = pn.Tabs(plot_tab)
+                    note_tab = pn.Pane(self.annotator.compose(plot.line().opts(width = 700, height = 200), self.note_layout))
+                    tabs = pn.Tabs(plot_tab,
+                                   note_tab)
                     
-                    def annotate(self, *args, **params):
-                        plot2 = hv.Curve(data)
-                        notes = hv.annotate.instance()
-                        note_tab = pn.Row(notes.compose(plot2,
-                                          (hv.Rectangles(data=None).opts(alpha=0.5))),
-                                          name="Annotate")
-                        tabs.append(note_tab)
-                        tabs.active = 1
-                    
-                    annotate_button.on_click(annotate)
+                    #def annotate(annotator, plot, tabs, note_layout, *args, **params):
+                    #        note_tab = pn.Pane(annotator.compose(plot.line().opts(width = 700, height = 200), note_layout))
+                    #        tabs.append(note_tab)
+                    #
+                    #annotate_button.on_click(annotate(annotator = self.annotator,
+                    #                                  plot = self.plots[selected_channel],
+                    #                                  tabs = tabs,
+                    #                                  note_layout = self.note_layout.opts(alpha = 0.5)
+                    #                                 )
+                    #                       )
                     
                     
                     new_card = pn.Card(tabs,
@@ -342,12 +365,21 @@ class Tsvi(template):
         del old_graphs.objects[:]
         self.graphs.objects = []
         del self.plot_cards[:]
+        
+    def save_notes(self, event):
+        #Save notes from annotator dataframe to csv
+        return
+    
+    def load_notes(self, event):
+        return
 
-    def annotate(self, *args, **params):
+    def clear_notes(self, event):
+        #Clear annotator dataframe
+        return
+    
+    def annotate(self, data, *args, **params):
         plot2 = hv.Curve(data)
-        notes = hv.annotate.instance()
-        note_tab = pn.Row(notes.compose(plot2, (hv.Rectangles(data = None).opts(alpha = 0.5))),
-                        name = "Annotate")
+        note_tab = pn.Pane(self.annotator.compose(plot2, self.note_layout))
         tabs.append(note_tab)
         tabs.active = 1
             
