@@ -91,6 +91,7 @@ class Tsvi(template):
 
         # Annotator
         self.annotator = hv.annotate.instance()
+        self.annotators = {}
         self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
 
         self.main.append(self.tabs)
@@ -105,22 +106,27 @@ class Tsvi(template):
         #Define Checkboxes and Buttons
         self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
         self.shared_axes_checkbox = pn.widgets.Checkbox(name="Shared Axes", value=True)
+        
         self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
                                                     button_type="danger",
                                                     width=button_width)
         self.clear_plots_button.on_click(self.clear_plots)
+        
         self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
                                                        button_type="danger",
                                                        width=button_width)
         self.clear_channels_button.on_click(self.clear_channels)
+        
         self.save_notes_button = pn.widgets.Button(name="Save Notes",
                                                    button_type="success",
                                                    width=button_width)
         self.save_notes_button.on_click(self.save_notes)
-        self.load_notes_button = pn.widgets.Button(name="Save Notes",
+        
+        self.load_notes_button = pn.widgets.Button(name="Load Notes",
                                                    button_type="success",
                                                    width=button_width)
         self.load_notes_button.on_click(self.load_notes)
+        
         self.clear_notes_button = pn.widgets.Button(name="Clear Notes",
                                                     button_type="danger",
                                                     width=button_width)
@@ -307,7 +313,7 @@ class Tsvi(template):
                     #access an element of the column by its name,
                     # i.e. controls.annotate.onclick()
                     # controls = get_card_controls()
-                    annotate_button = pn.widgets.Button(name="Annotate", button_type="primary", width=100)
+                    #annotate_button = pn.widgets.Button(name="Annotate", button_type="primary", width=100)
                     invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
 
                     # Fails becuse "event" not defined below
@@ -315,14 +321,21 @@ class Tsvi(template):
                     #   data = -1 * data
                     #
                     # invert_button.on_click(invert(event, data))
-                    controls = pn.Column(annotate_button,
+                    controls = pn.Column(
+                             #annotate_button,
                              invert_button,
                              sizing_mode = "fixed", width = 200,)
                     plot_pane = pn.Pane(bound_plot)
                     plot_tab = pn.Row(plot_pane,
                                       controls,
                                       name = run + "/" + channel)
-                    note_tab = pn.Pane(self.annotator.compose(plot.line().opts(width = 700, height = 200), self.note_layout))
+                    self.annotators[selected_channel] = hv.annotate.instance()
+                    note_tab = pn.Pane(self.annotators[selected_channel].compose(plot.line().opts(width = 700, height = 200),
+                                                             self.annotators[selected_channel](
+                                                                 hv.Rectangles(data= []).opts(alpha=0.5),
+                                                                                          annotations = ["Label"],
+                                                                            name = "Notes")),
+                                      name = "Notes")
                     tabs = pn.Tabs(plot_tab,
                                    note_tab)
 
