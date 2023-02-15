@@ -1,7 +1,7 @@
 import panel as pn
 import param
-from tsviewer.core import get_global_config, get_datasources
-from tsviewer.datasources.tables import TableConfig
+from tsvi.tsviewer.core import get_global_config, get_datasources
+from tsvi.tsviewer.datasources.tables import TableConfig
 
 class SyntheticDataSource(param.Parameterized):
 

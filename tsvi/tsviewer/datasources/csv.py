@@ -3,8 +3,8 @@ import param
 from typing import Optional, Union, List, Dict
 import polars
 from functools import partial
-from tsviewer.core import get_global_config, get_datasources
-from tsviewer.datasources.tables import TableConfig
+from tsvi.tsviewer.core import get_global_config, get_datasources
+from tsvi.tsviewer.datasources.tables import TableConfig
 import tempfile
 
 

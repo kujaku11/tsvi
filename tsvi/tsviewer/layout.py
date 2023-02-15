@@ -1,6 +1,6 @@
 import panel as pn
-from tsviewer.core import get_global_config, global_view
-from tsviewer.datasources.csv import CSVDataSource
+from tsvi.tsviewer.core import get_global_config, global_view
+from tsvi.tsviewer.datasources.csv import CSVDataSource
 
 pn.extension("tabulator", notifications=True)
 

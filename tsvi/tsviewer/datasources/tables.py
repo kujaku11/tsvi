@@ -2,7 +2,7 @@ import pandas as pd
 import panel as pn
 import param
 from bokeh.models.widgets.tables import SelectEditor, BooleanFormatter
-from tsviewer.datasources.polarutils import get_polar_datatype_names
+from tsvi.tsviewer.datasources.polarutils import get_polar_datatype_names
 
 
 class TableConfig(pn.widgets.Tabulator):
