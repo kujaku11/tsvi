@@ -32,6 +32,7 @@ from mth5.mth5 import MTH5
 
 from tsvi.mth5_tsviewer.helpers import channel_summary_columns_to_display
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
+from tsvi.mth5_tsviewer.helpers import make_plots
 from tsvi.mth5_tsviewer.helpers import list_h5s_to_plot
 from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 
@@ -64,6 +65,16 @@ displayed_columns = channel_summary_columns_to_display()
 COLORMAP = "Magma"
 
 def create_button(button_type):
+    pass
+
+
+def load_data_from_mth5():
+    """
+
+    Returns
+    -------
+
+    """
     pass
 
 class Tsvi(template):
@@ -270,90 +281,8 @@ class Tsvi(template):
                 xarray = xarray - xarray.mean()
 
     def make_plots(self):
-        # def get_card_controls():
-        #     annotate_button = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
-        #     invert_button = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
-        #
-        #     # Fails becuse "event" not defined below
-        #     # def invert(self, *args, **params):
-        #     #   data = -1 * data
-        #     #
-        #     # invert_button.on_click(invert(event, data))
-        #     controls = pn.Column(annotate_button,
-        #                          invert_button,
-        #                          sizing_mode = "fixed", width = 200,)
-        #     return controls
+        make_plots(self)
 
-        hv.output(backend = self.plotting_library.value)
-        new_cards  = []
-        used_files = list_h5s_to_plot(self.channels.value)
-        # The following for loop doesn't need 3 layers,
-        # Better may be to use a dataframe with one column for "file", "station",
-        # "run", "channel"
-    	# This would also allow group-by plotting, etc.
-        for file in used_files:
-            m = MTH5()
-            m.open_mth5(self.file_paths[file], mode = "r")
-            for selected_channel in self.channels.value:
-                selected_file, station, run, channel = selected_channel.split("/")
-                if selected_file == file:
-                    data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
-                    ###Cut Here###
-                    ylabel = data.type
-                    if self.subtract_mean_checkbox.value == True:
-                        data = data - data.mean()
-                    ###Cut Here###
-                    plot = hvplot.hvPlot(data,
-                                         width = self.plot_width,
-                                         height = self.plot_height,
-                                         cmap = 'magma',
-                                         ylabel = ylabel)
-                    self.plots[selected_channel] = plot
-                    if self.plotting_library.value == "bokeh":
-                        bound_plot = pn.bind(plot,
-                                             datashade = self.datashade_checkbox,
-                                             shared_axes = self.shared_axes_checkbox)
-                        #bound_plot = plot
-                        #bound_plot = data.hvplot()
-                    elif self.plotting_library.value == "matplotlib":
-                        fig = Figure(figsize = (8,6))
-
-                    # Tricky bit here -- it would be nice of we could
-                    #access an element of the column by its name,
-                    # i.e. controls.annotate.onclick()
-                    # controls = get_card_controls()
-                    #annotate_button = pn.widgets.Button(name="Annotate", button_type="primary", width=100)
-                    invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
-
-                    # Fails becuse "event" not defined below
-                    # def invert(self, *args, **params):
-                    #   data = -1 * data
-                    #
-                    # invert_button.on_click(invert(event, data))
-                    controls = pn.Column(
-                             #annotate_button,
-                             invert_button,
-                             sizing_mode = "fixed", width = 200,)
-                    plot_pane = pn.Pane(bound_plot)
-                    plot_tab = pn.Row(plot_pane,
-                                      controls,
-                                      name = run + "/" + channel)
-                    self.annotators[selected_channel] = hv.annotate.instance()
-                    note_tab = pn.Pane(self.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
-                                                             self.annotators[selected_channel](
-                                                                 hv.Rectangles(data= []).opts(alpha=0.5),
-                                                                                          annotations = ["Label"],
-                                                                            name = "Notes")),
-                                      name = "Notes")
-                    tabs = pn.Tabs(plot_tab,
-                                   note_tab)
-                    new_card = pn.Card(tabs,
-                                       title = selected_channel)
-
-                    new_cards.append(new_card)
-            m.close_mth5()
-        self.plot_cards = new_cards
-        return
 
 
 
@@ -366,7 +295,6 @@ class Tsvi(template):
         self.tabs.active = 2
         self.make_plots()
         self.display_plots()
-        #self.tabs.active = 2
         return
 
     def clear_plots(self, event):
