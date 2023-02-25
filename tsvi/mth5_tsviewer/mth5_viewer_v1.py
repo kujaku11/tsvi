@@ -85,6 +85,15 @@ class Tsvi(template):
 
 
     def __init__(self, *args, **kwargs):
+        """
+        instance variables:
+        self.file_paths: dict
+            Keys are
+        Parameters
+        ----------
+        args
+        kwargs
+        """
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
@@ -232,6 +241,23 @@ class Tsvi(template):
 
 
     def update_channels(self, *args, **kwargs):
+        """
+        This populates the channel_list in the Channels Tab
+
+        N.B. If you had two mth5 files in two different directories, but with the same
+        filename, you will encounter problems.
+
+        ToDo: try changing *args, **kwargs to event
+
+        Parameters
+        ----------
+        args
+        kwargs
+
+        Returns
+        -------
+
+        """
         new_channels = []
         for file_path in self.files.value:
             file_path = pathlib.Path(file_path)
@@ -261,19 +287,6 @@ class Tsvi(template):
         target.value = display_df
         return
 
-
-    def mth5s_to_xarrays(self):
-        #TODO: Look in to chunking at this level check if possible to extract slice at channel level, similar to run level
-        used_files = list_h5s_to_plot(self.channels.value)
-        for file in used_files:
-            m = MTH5()
-            m.open_mth5(self.file_paths[file], mode = "r")
-            for selected_channel in self.channels.value:
-                selected_file, station, run, channel = selected_channel.split("/")
-                if selected_file == file:
-                    data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
-                    self.xarrays.append(data.rename(data.attrs["mth5_type"]))
-            m.close_mth5()
 
     def preprocess_xarrays(self):
         for xarray in self.xarrays:
@@ -318,18 +331,5 @@ class Tsvi(template):
         return
 
 
-
 tsvi = Tsvi(plot_width=900, plot_height=200)
 tsvi.show()
-
-
-"""
-# Move to Lessons Learned (IMP)
-Some things to be aware of between Datashader and Annotators. Datashader converts a holoviews.element
-into a holoviews.core.spaces.DynamicMap. When .compose() -ing an Annotator, it requires elements, not DynamicMaps.
-This means that the annotator won't work on a Datashaded plot.
-
-One work around is to create a second plot that does not dynamically change between element and DynamicMap
-with the push of a button and have this plot be used for the annotator. This works but it means that there are
-two different plot objects created for each plot and doubles the loading time for each plot.
-"""

@@ -33,13 +33,13 @@ def list_h5s_to_plot(channels_list):
 
     Parameters
     ----------
-    channels_list: string represenation of the data paths asscocated with channels
-        May need to be modified to work on windows, if so, we should
-        cast them to path objects and take [Path(x).name for x in channels_list]
+    channels_list: string representation of the data paths associated with channels
 
     Returns
     -------
     used_files: list
+        Each element of the list is the name of an mth5 file that is associated with
+        at least one channel in the list.
 
     """
     used_files = []
@@ -127,9 +127,19 @@ def make_plots(obj):
     new_cards  = []
     used_files = list_h5s_to_plot(obj.channels.value)
 
+    # Key this data_dict with the selected_channel from below
+    # data_dict = get_data(used_files, obj.channels.value)
+    # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
+    # plot_cards = make_plots(data_dict)
+
+    # the line below is redundant -- under constrution ---
+    data_dict = get_mth5_data_as_xarrays(obj.channels.value, obj.file_paths)
+
     for file in used_files:
         m = MTH5()
         m.open_mth5(obj.file_paths[file], mode = "r")
+
+        # Loop over each channel to plot
         for selected_channel in obj.channels.value:
             selected_file, station, run, channel = selected_channel.split("/")
             if selected_file == file:
@@ -180,3 +190,39 @@ def make_plots(obj):
         m.close_mth5()
     obj.plot_cards = new_cards
     return
+
+
+def get_mth5_data_as_xarrays(selected_channels, file_paths):
+    """
+    ToDo:
+    - This can be modified in future to support chunking read in
+    - interaction with the intake package belongs here.
+    - This function works on multiple mth5 files in sequence. Another way to do this
+    would to be to invert the two for loops so that the outer loop iterates over
+    selected_channels first and then a one-line function accesses the data for that
+    channel.
+
+    Parameters
+    ----------
+    selected_channels: list
+    file_paths
+    kwargs
+
+    Returns
+    -------
+
+    """
+    out_dict = {}
+    used_files = list_h5s_to_plot(selected_channels)
+    for file in used_files:
+        m = MTH5()
+        m.open_mth5(file_paths[file], mode = "r")
+        for selected_channel in selected_channels:
+            selected_file, station, run, channel = selected_channel.split("/")
+            if selected_file == file:
+                data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
+                # data = data.rename(data.attrs["mth5_type"]): "ex"--> "Electric"
+                #self.xarrays.append(data)
+                out_dict[selected_channel] = data
+        m.close_mth5()
+    return out_dict
