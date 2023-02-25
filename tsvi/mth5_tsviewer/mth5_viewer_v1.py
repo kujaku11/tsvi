@@ -90,9 +90,9 @@ class Tsvi(template):
                             dynamic=False)
 
         # Annotator
-        self.annotator = hv.annotate.instance()
+        #self.annotator = hv.annotate.instance()
         self.annotators = {}
-        self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
+        #self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
 
         self.main.append(self.tabs)
 
@@ -106,27 +106,29 @@ class Tsvi(template):
         #Define Checkboxes and Buttons
         self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
         self.shared_axes_checkbox = pn.widgets.Checkbox(name="Shared Axes", value=True)
-        
+
         self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
                                                     button_type="danger",
                                                     width=button_width)
         self.clear_plots_button.on_click(self.clear_plots)
-        
+
         self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
                                                        button_type="danger",
                                                        width=button_width)
         self.clear_channels_button.on_click(self.clear_channels)
-        
+
+        self.save_notes_input = pn.widgets.TextInput(value='Notes.csv', name='Save to .csv')
         self.save_notes_button = pn.widgets.Button(name="Save Notes",
                                                    button_type="success",
                                                    width=button_width)
         self.save_notes_button.on_click(self.save_notes)
-        
+
+        self.load_notes_input = pn.widgets.TextInput(value='Notes.csv', name='Load from .csv')
         self.load_notes_button = pn.widgets.Button(name="Load Notes",
                                                    button_type="success",
                                                    width=button_width)
         self.load_notes_button.on_click(self.load_notes)
-        
+
         self.clear_notes_button = pn.widgets.Button(name="Clear Notes",
                                                     button_type="danger",
                                                     width=button_width)
@@ -141,7 +143,9 @@ class Tsvi(template):
         self.sidebar.append(self.shared_axes_checkbox)
         self.sidebar.append(self.clear_plots_button)
         self.sidebar.append(self.clear_channels_button)
+        self.sidebar.append(self.save_notes_input)
         self.sidebar.append(self.save_notes_button)
+        self.sidebar.append(self.load_notes_input)
         self.sidebar.append(self.load_notes_button)
         self.sidebar.append(self.clear_notes_button)
         self.start_resource_stream()
@@ -196,6 +200,10 @@ class Tsvi(template):
         self.graphs = pn.Column()
         tab = pn.Column(self.graphs, name="Plot")
         return tab
+
+    #def make_help_tab(self):
+    #    tab = pn.Pane()
+    #    return
 
 
     def start_resource_stream(self):
@@ -330,7 +338,7 @@ class Tsvi(template):
                                       controls,
                                       name = run + "/" + channel)
                     self.annotators[selected_channel] = hv.annotate.instance()
-                    note_tab = pn.Pane(self.annotators[selected_channel].compose(plot.line().opts(width = 700, height = 200),
+                    note_tab = pn.Pane(self.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
                                                              self.annotators[selected_channel](
                                                                  hv.Rectangles(data= []).opts(alpha=0.5),
                                                                                           annotations = ["Label"],
@@ -338,19 +346,6 @@ class Tsvi(template):
                                       name = "Notes")
                     tabs = pn.Tabs(plot_tab,
                                    note_tab)
-
-                    #def annotate(annotator, plot, tabs, note_layout, *args, **params):
-                    #        note_tab = pn.Pane(annotator.compose(plot.line().opts(width = 700, height = 200), note_layout))
-                    #        tabs.append(note_tab)
-                    #
-                    #annotate_button.on_click(annotate(annotator = self.annotator,
-                    #                                  plot = self.plots[selected_channel],
-                    #                                  tabs = tabs,
-                    #                                  note_layout = self.note_layout.opts(alpha = 0.5)
-                    #                                 )
-                    #                       )
-
-
                     new_card = pn.Card(tabs,
                                        title = selected_channel)
 
@@ -383,7 +378,8 @@ class Tsvi(template):
 
     def save_notes(self, event):
         #Save notes from annotator dataframe to csv
-        return
+        df_combined = pd.concat([annotator.annotated.dframe().assign(run = label) for annotator, label in zip(self.annotators.values(), self.annotators.keys())])
+        df_combined.to_csv(self.save_notes_input.value, index=False)
 
     def load_notes(self, event):
         return

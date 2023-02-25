@@ -36,6 +36,7 @@ def list_h5s_to_plot(channels_list):
 
     Returns
     -------
+    used_files: list
 
     """
     used_files = []
@@ -66,3 +67,20 @@ def channel_summary_columns_to_display():
 #                           shared_axes = shared
 #                          )
 #     return plot
+def get_templates_dict():
+    """
+     Make template choice dictionary
+     More information about template choices and functionality is here:
+     https://panel.holoviz.org/user_guide/Templates.html
+     Returns
+     templates: dict
+
+    -------
+
+    """
+    templates = {}
+    templates["bootstrap"] = pn.template.BootstrapTemplate
+    templates["fast"] = pn.template.FastListTemplate
+    templates["golden"] = pn.template.GoldenTemplate
+    templates["grid"] = pn.template.FastGridTemplate
+    return templates
