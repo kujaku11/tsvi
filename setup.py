@@ -13,6 +13,7 @@ install_requires=[
     "numpy",
     "pandas",
     "panel",
+    "pathlib",
     "param",
     "pendulum",
     "polars",

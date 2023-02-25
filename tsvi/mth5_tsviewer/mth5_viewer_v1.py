@@ -21,6 +21,7 @@ import matplotlib as plt
 import numpy as np
 import pandas as pd
 import panel as pn
+import pathlib
 import psutil
 import time
 import xarray
@@ -222,14 +223,14 @@ class Tsvi(template):
     def update_channels(self, *args, **kwargs):
         new_channels = []
         for file_path in self.files.value:
-            file_name = file_path.split("/")[-1] # This might not work on Windows
+            file_path = pathlib.Path(file_path)
+            file_name = file_path.name
             self.file_paths[file_name] = file_path
             m = MTH5()
             m.open_mth5(file_path, mode = "r")
             df = m.channel_summary.to_dataframe()
             m.close_mth5()
             df["file"] = file_name
-            # use pathlib.joinpath()
             df["channel_path"] = (df["file"] + "/" + df["station"] + "/" + df["run"] + "/" + df["component"])
             df.set_index("channel_path", inplace = True)
             self.cache[file_name] = df
