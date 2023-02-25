@@ -389,12 +389,6 @@ class Tsvi(template):
         #Clear annotator dataframe
         return
 
-    def annotate(self, data, *args, **params):
-
-        plot2 = hv.Curve(data)
-        note_tab = pn.Pane(self.annotator.compose(plot2, self.note_layout))
-        tabs.append(note_tab)
-        tabs.active = 1
 
 
 tsvi = Tsvi(plot_width=900, plot_height=200)
