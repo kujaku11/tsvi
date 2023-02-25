@@ -390,26 +390,19 @@ class Tsvi(template):
         return
 
     def annotate(self, data, *args, **params):
+
         plot2 = hv.Curve(data)
         note_tab = pn.Pane(self.annotator.compose(plot2, self.note_layout))
         tabs.append(note_tab)
         tabs.active = 1
 
 
-
-
-# In[9]:
-
-
 tsvi = Tsvi(plot_width=900, plot_height=200)
 tsvi.show()
 
 
-# In[35]:
-
-
 """
-
+# Move to Lessons Learned (IMP)
 Some things to be aware of between Datashader and Annotators. Datashader converts a holoviews.element
 into a holoviews.core.spaces.DynamicMap. When .compose() -ing an Annotator, it requires elements, not DynamicMaps.
 This means that the annotator won't work on a Datashaded plot.
@@ -418,18 +411,3 @@ One work around is to create a second plot that does not dynamically change betw
 with the push of a button and have this plot be used for the annotator. This works but it means that there are
 two different plot objects created for each plot and doubles the loading time for each plot.
 """
-
-
-# In[16]:
-#
-#
-# tsvi.xarrays
-
-
-
-#%matplotlib
-#import matplotlib.pyplot as plt
-
-
-#hv.output(backend = "bokeh")
-#pn.extension("ipywidgets")
