@@ -47,13 +47,13 @@ TEMPLATES = get_templates_dict()
 template_key = "golden"
 template = TEMPLATES[template_key]
 
-displayed_columns = channel_summary_columns_to_display()
+CH_SUMMARY_DISPLAY_COLUMNS = channel_summary_columns_to_display()
 
 COLORMAP = "Magma"
 
 
 class Tsvi(template):
-    # these should be ivars
+    # some of these should be ivars maybe
     cpu_usage = cpu_usage_widget()
     memory_usage = memory_usage_widget()
     streaming_resources = False
@@ -73,7 +73,7 @@ class Tsvi(template):
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
 
-        self.cache = {}
+        self.channel_summary_dict = {}
         self.file_paths = {}
         self.xarrays = []
         self.plots = {}
@@ -143,7 +143,7 @@ class Tsvi(template):
         self.sidebar.append(self.load_notes_input)
         self.sidebar.append(self.load_notes_button)
         self.sidebar.append(self.clear_notes_button)
-        
+
     def make_folders_tab(self):
         self.files = pn.widgets.FileSelector(name="Files",
                                              directory="~",
@@ -153,9 +153,7 @@ class Tsvi(template):
         self.select_button = pn.widgets.Button(name="Select Files",
                                                button_type="primary")
         self.select_button.on_click(self.update_channels)
-
         tab = pn.Column(self.files, self.select_button, name="Folders")
-
         return tab
 
     def make_channels_tab(self):
@@ -164,7 +162,7 @@ class Tsvi(template):
                                                height=200)
         self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
-        self.channel_summary = pd.DataFrame(columns = displayed_columns)
+        self.channel_summary = pd.DataFrame(columns=CH_SUMMARY_DISPLAY_COLUMNS)
         self.summary_display = pn.widgets.DataFrame(self.channel_summary,
                                                     height=500,
                                                     width=1000)
@@ -196,9 +194,8 @@ class Tsvi(template):
         return tab
 
     #def make_help_tab(self):
-    #    tab = pn.Pane()
+    #    tab = pn.panel()
     #    return
-
 
     def start_resource_stream(self):
         if self.streaming_resources:
@@ -213,23 +210,17 @@ class Tsvi(template):
         self.streaming_resources = True
 
 
-    def update_channels(self, *args, **kwargs):
+    def update_channels(self, event):
         """
         This populates the channel_list in the Channels Tab
 
         N.B. If you had two mth5 files in two different directories, but with the same
         filename, you will encounter problems.
 
-        ToDo: try changing *args, **kwargs to event
-
         Parameters
         ----------
-        args
-        kwargs
-
-        Returns
-        -------
-
+        event: param.parameterized.Event
+            A dummy variable needed for onclick (and param watchers in general)
         """
         new_channels = []
         for file_path in self.files.value:
@@ -243,20 +234,25 @@ class Tsvi(template):
             df["file"] = file_name
             df["channel_path"] = (df["file"] + "/" + df["station"] + "/" + df["run"] + "/" + df["component"])
             df.set_index("channel_path", inplace = True)
-            self.cache[file_name] = df
-            new_channels.extend(self.cache[file_name].index)
+            self.channel_summary_dict[file_name] = df
+            new_channels.extend(self.channel_summary_dict[file_name].index)
         self.channels.options = list(new_channels)
-        self.tabs.active = 1
+        self.tabs.active = 1 #swicth user to tab 1
         return
 
-    def clear_channels(self, *args, **params):
+    def clear_channels(self, event):
         self.channels.options = list()
         return
 
     def display_channel_summary(self, target,  event):
+        dfs = []
         display_df = pd.DataFrame()
         for channel in event.new:
-            display_df = pd.concat([display_df,(tsvi.cache[channel.split("/")[0]].loc[[channel], displayed_columns])])
+            key = channel.split("/")[0]
+            #dfs.append(self.channel_summary_dict[key].loc[channel,
+            #                                              CH_SUMMARY_DISPLAY_COLUMNS])
+            display_df = pd.concat([display_df,(self.channel_summary_dict[key].loc[[channel], CH_SUMMARY_DISPLAY_COLUMNS])])
+        #display_df = pd.concat(dfs)
         target.value = display_df
         return
 
