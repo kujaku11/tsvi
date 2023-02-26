@@ -53,7 +53,7 @@ COLORMAP = "Magma"
 
 
 class Tsvi(template):
-
+    # these should be ivars
     cpu_usage = cpu_usage_widget()
     memory_usage = memory_usage_widget()
     streaming_resources = False
@@ -84,16 +84,14 @@ class Tsvi(template):
                             self.make_plots_tab(),
                             closable=False,
                             dynamic=False)
+        self.main.append(self.tabs)
 
         # Annotator
-        #self.annotator = hv.annotate.instance()
         self.annotators = {}
-        #self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
-
-        self.main.append(self.tabs)
 
         # Sidebar
         self.make_sidebar()
+
         self.start_resource_stream()
 
 
@@ -130,9 +128,10 @@ class Tsvi(template):
                                                     width=button_width)
         self.clear_notes_button.on_click(self.clear_notes)
 
+        self.layout_sidebar()
+        self.start_resource_stream()
 
-
-        # Set up Layout
+    def layout_sidebar(self):
         self.sidebar.append(self.cpu_usage)
         self.sidebar.append(self.memory_usage)
         self.sidebar.append(self.datashade_checkbox)
@@ -144,8 +143,7 @@ class Tsvi(template):
         self.sidebar.append(self.load_notes_input)
         self.sidebar.append(self.load_notes_button)
         self.sidebar.append(self.clear_notes_button)
-        self.start_resource_stream()
-
+        
     def make_folders_tab(self):
         self.files = pn.widgets.FileSelector(name="Files",
                                              directory="~",
