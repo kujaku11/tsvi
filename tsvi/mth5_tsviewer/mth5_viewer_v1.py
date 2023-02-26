@@ -8,7 +8,6 @@ There are four main Panels in this UI
 - Plot
 
 """
-#get_ipython().run_line_magic('matplotlib', 'widget')
 
 from matplotlib.backends.backend_agg import FigureCanvas
 from matplotlib.figure import Figure
@@ -32,53 +31,50 @@ from mth5.mth5 import MTH5
 
 from tsvi.mth5_tsviewer.helpers import channel_summary_columns_to_display
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
+from tsvi.mth5_tsviewer.helpers import get_templates_dict
+from tsvi.mth5_tsviewer.helpers import make_plots
 from tsvi.mth5_tsviewer.helpers import list_h5s_to_plot
 from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 
 
-
-# ipynb command
-#pn.extension("ipywidgets")
-
 hv.extension("bokeh")
 hv.extension("matplotlib")
 
-
 xarray.set_options(keep_attrs = True)
 
-# Make template choice dictionary
-# More information about template choices and functionality is here:
-# https://panel.holoviz.org/user_guide/Templates.html
-TEMPLATES = {}
-TEMPLATES["bootstrap"] = pn.template.BootstrapTemplate
-TEMPLATES["fast"] = pn.template.FastListTemplate
-TEMPLATES["golden"] = pn.template.GoldenTemplate
-TEMPLATES["grid"] = pn.template.FastGridTemplate
-
 # Define Template for this instance
+TEMPLATES = get_templates_dict()
 template_key = "golden"
 template = TEMPLATES[template_key]
 
-displayed_columns = channel_summary_columns_to_display()
+CH_SUMMARY_DISPLAY_COLUMNS = channel_summary_columns_to_display()
 
 COLORMAP = "Magma"
 
-def create_button(button_type):
-    pass
 
 class Tsvi(template):
-
+    # some of these should be ivars maybe
     cpu_usage = cpu_usage_widget()
     memory_usage = memory_usage_widget()
     streaming_resources = False
 
 
     def __init__(self, *args, **kwargs):
+        """
+        instance variables:
+        self.file_paths: dict
+            Keys are
+        Parameters
+        ----------
+        args
+        kwargs
+        """
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
-
-        self.cache = {}
+        self.annotatable = kwargs.get("annotatable",False)#True)
+        self.colormap = COLORMAP
+        self.channel_summary_dict = {}
         self.file_paths = {}
         self.xarrays = []
         self.plots = {}
@@ -89,16 +85,15 @@ class Tsvi(template):
                             self.make_plots_tab(),
                             closable=False,
                             dynamic=False)
+        self.main.append(self.tabs)
 
         # Annotator
-        #self.annotator = hv.annotate.instance()
-        self.annotators = {}
-        #self.note_layout = self.annotator(hv.Rectangles(data= []).opts(alpha=0.5), annotations = ["Label"])
-
-        self.main.append(self.tabs)
+        if self.annotatable:
+            self.annotators = {}
 
         # Sidebar
         self.make_sidebar()
+
         self.start_resource_stream()
 
 
@@ -135,9 +130,10 @@ class Tsvi(template):
                                                     width=button_width)
         self.clear_notes_button.on_click(self.clear_notes)
 
+        self.layout_sidebar()
+        self.start_resource_stream()
 
-
-        # Set up Layout
+    def layout_sidebar(self):
         self.sidebar.append(self.cpu_usage)
         self.sidebar.append(self.memory_usage)
         self.sidebar.append(self.datashade_checkbox)
@@ -149,7 +145,6 @@ class Tsvi(template):
         self.sidebar.append(self.load_notes_input)
         self.sidebar.append(self.load_notes_button)
         self.sidebar.append(self.clear_notes_button)
-        self.start_resource_stream()
 
     def make_folders_tab(self):
         self.files = pn.widgets.FileSelector(name="Files",
@@ -160,9 +155,7 @@ class Tsvi(template):
         self.select_button = pn.widgets.Button(name="Select Files",
                                                button_type="primary")
         self.select_button.on_click(self.update_channels)
-
         tab = pn.Column(self.files, self.select_button, name="Folders")
-
         return tab
 
     def make_channels_tab(self):
@@ -171,7 +164,7 @@ class Tsvi(template):
                                                height=200)
         self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
-        self.channel_summary = pd.DataFrame(columns = displayed_columns)
+        self.channel_summary = pd.DataFrame(columns=CH_SUMMARY_DISPLAY_COLUMNS)
         self.summary_display = pn.widgets.DataFrame(self.channel_summary,
                                                     height=500,
                                                     width=1000)
@@ -203,9 +196,8 @@ class Tsvi(template):
         return tab
 
     #def make_help_tab(self):
-    #    tab = pn.Pane()
+    #    tab = pn.panel()
     #    return
-
 
     def start_resource_stream(self):
         if self.streaming_resources:
@@ -220,7 +212,18 @@ class Tsvi(template):
         self.streaming_resources = True
 
 
-    def update_channels(self, *args, **kwargs):
+    def update_channels(self, event):
+        """
+        This populates the channel_list in the Channels Tab
+
+        N.B. If you had two mth5 files in two different directories, but with the same
+        filename, you will encounter problems.
+
+        Parameters
+        ----------
+        event: param.parameterized.Event
+            A dummy variable needed for onclick (and param watchers in general)
+        """
         new_channels = []
         for file_path in self.files.value:
             file_path = pathlib.Path(file_path)
@@ -233,36 +236,26 @@ class Tsvi(template):
             df["file"] = file_name
             df["channel_path"] = (df["file"] + "/" + df["station"] + "/" + df["run"] + "/" + df["component"])
             df.set_index("channel_path", inplace = True)
-            self.cache[file_name] = df
-            new_channels.extend(self.cache[file_name].index)
+            self.channel_summary_dict[file_name] = df
+            new_channels.extend(self.channel_summary_dict[file_name].index)
         self.channels.options = list(new_channels)
-        self.tabs.active = 1
+        self.tabs.active = 1 #swicth user to tab 1
         return
 
-    def clear_channels(self, *args, **params):
+    def clear_channels(self, event):
         self.channels.options = list()
         return
 
     def display_channel_summary(self, target,  event):
+        dfs = []
         display_df = pd.DataFrame()
         for channel in event.new:
-            display_df = pd.concat([display_df,(tsvi.cache[channel.split("/")[0]].loc[[channel], displayed_columns])])
+            key = channel.split("/")[0]
+            dfs.append(self.channel_summary_dict[key].loc[[channel],CH_SUMMARY_DISPLAY_COLUMNS])
+        display_df = pd.concat(dfs)
         target.value = display_df
         return
 
-
-    def mth5s_to_xarrays(self):
-        #TODO: Look in to chunking at this level check if possible to extract slice at channel level, similar to run level
-        used_files = list_h5s_to_plot(self.channels.value)
-        for file in used_files:
-            m = MTH5()
-            m.open_mth5(self.file_paths[file], mode = "r")
-            for selected_channel in self.channels.value:
-                selected_file, station, run, channel = selected_channel.split("/")
-                if selected_file == file:
-                    data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
-                    self.xarrays.append(data.rename(data.attrs["mth5_type"]))
-            m.close_mth5()
 
     def preprocess_xarrays(self):
         for xarray in self.xarrays:
@@ -270,91 +263,7 @@ class Tsvi(template):
                 xarray = xarray - xarray.mean()
 
     def make_plots(self):
-        # def get_card_controls():
-        #     annotate_button = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
-        #     invert_button = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
-        #
-        #     # Fails becuse "event" not defined below
-        #     # def invert(self, *args, **params):
-        #     #   data = -1 * data
-        #     #
-        #     # invert_button.on_click(invert(event, data))
-        #     controls = pn.Column(annotate_button,
-        #                          invert_button,
-        #                          sizing_mode = "fixed", width = 200,)
-        #     return controls
-
-        hv.output(backend = self.plotting_library.value)
-        new_cards  = []
-        used_files = list_h5s_to_plot(self.channels.value)
-        # The following for loop doesn't need 3 layers,
-        # Better may be to use a dataframe with one column for "file", "station",
-        # "run", "channel"
-    	# This would also allow group-by plotting, etc.
-        for file in used_files:
-            m = MTH5()
-            m.open_mth5(self.file_paths[file], mode = "r")
-            for selected_channel in self.channels.value:
-                selected_file, station, run, channel = selected_channel.split("/")
-                if selected_file == file:
-                    data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
-                    ###Cut Here###
-                    ylabel = data.type
-                    if self.subtract_mean_checkbox.value == True:
-                        data = data - data.mean()
-                    ###Cut Here###
-                    plot = hvplot.hvPlot(data,
-                                         width = self.plot_width,
-                                         height = self.plot_height,
-                                         cmap = 'magma',
-                                         ylabel = ylabel)
-                    self.plots[selected_channel] = plot
-                    if self.plotting_library.value == "bokeh":
-                        bound_plot = pn.bind(plot,
-                                             datashade = self.datashade_checkbox,
-                                             shared_axes = self.shared_axes_checkbox)
-                        #bound_plot = plot
-                        #bound_plot = data.hvplot()
-                    elif self.plotting_library.value == "matplotlib":
-                        fig = Figure(figsize = (8,6))
-
-                    # Tricky bit here -- it would be nice of we could
-                    #access an element of the column by its name,
-                    # i.e. controls.annotate.onclick()
-                    # controls = get_card_controls()
-                    #annotate_button = pn.widgets.Button(name="Annotate", button_type="primary", width=100)
-                    invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
-
-                    # Fails becuse "event" not defined below
-                    # def invert(self, *args, **params):
-                    #   data = -1 * data
-                    #
-                    # invert_button.on_click(invert(event, data))
-                    controls = pn.Column(
-                             #annotate_button,
-                             invert_button,
-                             sizing_mode = "fixed", width = 200,)
-                    plot_pane = pn.Pane(bound_plot)
-                    plot_tab = pn.Row(plot_pane,
-                                      controls,
-                                      name = run + "/" + channel)
-                    self.annotators[selected_channel] = hv.annotate.instance()
-                    note_tab = pn.Pane(self.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
-                                                             self.annotators[selected_channel](
-                                                                 hv.Rectangles(data= []).opts(alpha=0.5),
-                                                                                          annotations = ["Label"],
-                                                                            name = "Notes")),
-                                      name = "Notes")
-                    tabs = pn.Tabs(plot_tab,
-                                   note_tab)
-                    new_card = pn.Card(tabs,
-                                       title = selected_channel)
-
-                    new_cards.append(new_card)
-            m.close_mth5()
-        self.plot_cards = new_cards
-        return
-
+        make_plots(self)
 
 
     def display_plots(self):
@@ -366,7 +275,6 @@ class Tsvi(template):
         self.tabs.active = 2
         self.make_plots()
         self.display_plots()
-        #self.tabs.active = 2
         return
 
     def clear_plots(self, event):
@@ -389,47 +297,6 @@ class Tsvi(template):
         #Clear annotator dataframe
         return
 
-    def annotate(self, data, *args, **params):
-        plot2 = hv.Curve(data)
-        note_tab = pn.Pane(self.annotator.compose(plot2, self.note_layout))
-        tabs.append(note_tab)
-        tabs.active = 1
-
-
-
-
-# In[9]:
-
 
 tsvi = Tsvi(plot_width=900, plot_height=200)
 tsvi.show()
-
-
-# In[35]:
-
-
-"""
-
-Some things to be aware of between Datashader and Annotators. Datashader converts a holoviews.element
-into a holoviews.core.spaces.DynamicMap. When .compose() -ing an Annotator, it requires elements, not DynamicMaps.
-This means that the annotator won't work on a Datashaded plot.
-
-One work around is to create a second plot that does not dynamically change between element and DynamicMap
-with the push of a button and have this plot be used for the annotator. This works but it means that there are
-two different plot objects created for each plot and doubles the loading time for each plot.
-"""
-
-
-# In[16]:
-#
-#
-# tsvi.xarrays
-
-
-
-#%matplotlib
-#import matplotlib.pyplot as plt
-
-
-#hv.output(backend = "bokeh")
-#pn.extension("ipywidgets")
