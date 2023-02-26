@@ -72,6 +72,7 @@ class Tsvi(template):
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
+        self.annotatable = kwargs.get("annotatable",False)#True)
         self.colormap = COLORMAP
         self.channel_summary_dict = {}
         self.file_paths = {}
@@ -87,7 +88,8 @@ class Tsvi(template):
         self.main.append(self.tabs)
 
         # Annotator
-        self.annotators = {}
+        if self.annotatable:
+            self.annotators = {}
 
         # Sidebar
         self.make_sidebar()

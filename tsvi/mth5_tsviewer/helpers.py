@@ -134,7 +134,7 @@ def make_plots(obj):
     data_dict = get_mth5_data_as_xarrays(obj.channels.value, obj.file_paths)
     # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
     # plot_cards = make_plots(data_dict)
-
+    # from holoviews.operation.datashader import datashade
     for selected_channel,data in data_dict.items():
         selected_file, station, run, channel = selected_channel.split("/")
         ylabel = data.type
@@ -145,6 +145,7 @@ def make_plots(obj):
                                  height = obj.plot_height,
                                  cmap = obj.colormap,
                                  ylabel = ylabel)
+            #plot = datashade(hv.Curve(data))
             obj.plots[selected_channel] = plot
             if obj.plotting_library.value == "bokeh":
                 bound_plot = pn.bind(plot,
@@ -164,15 +165,19 @@ def make_plots(obj):
             plot_tab = pn.Row(plot_pane,
                               controls,
                               name = run + "/" + channel)
-            obj.annotators[selected_channel] = hv.annotate.instance()
-            note_tab = pn.Pane(obj.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
-                                                                        obj.annotators[selected_channel](
-                                                                            hv.Rectangles(data= []).opts(alpha=0.5),
-                                                                            annotations = ["Label"],
-                                                                            name = "Notes")),
-                               name = "Notes")
-            tabs = pn.Tabs(plot_tab,
-                           note_tab)
+            if obj.annotatable:
+                obj.annotators[selected_channel] = hv.annotate.instance()
+                note_tab = pn.Pane(obj.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
+                                                                            obj.annotators[selected_channel](
+                                                                                hv.Rectangles(data= []).opts(alpha=0.5),
+                                                                                annotations = ["Label"],
+                                                                                name = "Notes")),
+                                   name = "Notes")
+
+                tabs = pn.Tabs(plot_tab,
+                               note_tab)
+            else:
+                tabs = pn.Tabs(plot_tab)
             new_card = pn.Card(tabs,
                                title = selected_channel)
 
