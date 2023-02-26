@@ -127,67 +127,58 @@ def make_plots(obj):
     new_cards  = []
     used_files = list_h5s_to_plot(obj.channels.value)
 
-    # Key this data_dict with the selected_channel from below
-    # data_dict = get_data(used_files, obj.channels.value)
     # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
     # plot_cards = make_plots(data_dict)
 
-    # the line below is redundant -- under constrution ---
+    # Keyed with the selected_channel from below
     data_dict = get_mth5_data_as_xarrays(obj.channels.value, obj.file_paths)
+    # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
+    # plot_cards = make_plots(data_dict)
 
-    for file in used_files:
-        m = MTH5()
-        m.open_mth5(obj.file_paths[file], mode = "r")
+    for selected_channel,data in data_dict.items():
+        selected_file, station, run, channel = selected_channel.split("/")
+        ylabel = data.type
+        if obj.subtract_mean_checkbox.value == True:
+            data = data - data.mean()
+            plot = hvplot.hvPlot(data,
+                                 width = obj.plot_width,
+                                 height = obj.plot_height,
+                                 cmap = 'magma',
+                                 ylabel = ylabel)
+            obj.plots[selected_channel] = plot
+            if obj.plotting_library.value == "bokeh":
+                bound_plot = pn.bind(plot,
+                                     datashade = obj.datashade_checkbox,
+                                     shared_axes = obj.shared_axes_checkbox)
 
-        # Loop over each channel to plot
-        for selected_channel in obj.channels.value:
-            selected_file, station, run, channel = selected_channel.split("/")
-            if selected_file == file:
-                # chunking would go here
-                data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
+            elif obj.plotting_library.value == "matplotlib":
+                fig = Figure(figsize = (8,6))
 
-                ylabel = data.type
-                if obj.subtract_mean_checkbox.value == True:
-                    data = data - data.mean()
+            invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
 
-                plot = hvplot.hvPlot(data,
-                                     width = obj.plot_width,
-                                     height = obj.plot_height,
-                                     cmap = 'magma',
-                                     ylabel = ylabel)
-                obj.plots[selected_channel] = plot
-                if obj.plotting_library.value == "bokeh":
-                    bound_plot = pn.bind(plot,
-                                         datashade = obj.datashade_checkbox,
-                                         shared_axes = obj.shared_axes_checkbox)
+            # invert_button.on_click(invert(event, data))
+            controls = pn.Column(
+                invert_button,
+                sizing_mode = "fixed", width = 200,)
+            plot_pane = pn.Pane(bound_plot)
+            plot_tab = pn.Row(plot_pane,
+                              controls,
+                              name = run + "/" + channel)
+            obj.annotators[selected_channel] = hv.annotate.instance()
+            note_tab = pn.Pane(obj.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
+                                                                        obj.annotators[selected_channel](
+                                                                            hv.Rectangles(data= []).opts(alpha=0.5),
+                                                                            annotations = ["Label"],
+                                                                            name = "Notes")),
+                               name = "Notes")
+            tabs = pn.Tabs(plot_tab,
+                           note_tab)
+            new_card = pn.Card(tabs,
+                               title = selected_channel)
 
-                elif obj.plotting_library.value == "matplotlib":
-                    fig = Figure(figsize = (8,6))
+            new_cards.append(new_card)
 
-                invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
-                #
-                # invert_button.on_click(invert(event, data))
-                controls = pn.Column(
-                    invert_button,
-                    sizing_mode = "fixed", width = 200,)
-                plot_pane = pn.Pane(bound_plot)
-                plot_tab = pn.Row(plot_pane,
-                                  controls,
-                                  name = run + "/" + channel)
-                obj.annotators[selected_channel] = hv.annotate.instance()
-                note_tab = pn.Pane(obj.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
-                                                                            obj.annotators[selected_channel](
-                                                                                 hv.Rectangles(data= []).opts(alpha=0.5),
-                                                                                 annotations = ["Label"],
-                                                                                 name = "Notes")),
-                                   name = "Notes")
-                tabs = pn.Tabs(plot_tab,
-                               note_tab)
-                new_card = pn.Card(tabs,
-                                   title = selected_channel)
 
-                new_cards.append(new_card)
-        m.close_mth5()
     obj.plot_cards = new_cards
     return
 

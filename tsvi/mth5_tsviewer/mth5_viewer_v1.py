@@ -8,7 +8,6 @@ There are four main Panels in this UI
 - Plot
 
 """
-#get_ipython().run_line_magic('matplotlib', 'widget')
 
 from matplotlib.backends.backend_agg import FigureCanvas
 from matplotlib.figure import Figure
