@@ -143,7 +143,7 @@ def make_plots(obj):
             plot = hvplot.hvPlot(data,
                                  width = obj.plot_width,
                                  height = obj.plot_height,
-                                 cmap = 'magma',
+                                 cmap = obj.colormap,
                                  ylabel = ylabel)
             obj.plots[selected_channel] = plot
             if obj.plotting_library.value == "bokeh":

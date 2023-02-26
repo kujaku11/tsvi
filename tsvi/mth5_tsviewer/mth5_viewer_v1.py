@@ -72,7 +72,7 @@ class Tsvi(template):
         super().__init__(*args, **kwargs)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
-
+        self.colormap = COLORMAP
         self.channel_summary_dict = {}
         self.file_paths = {}
         self.xarrays = []
@@ -249,10 +249,8 @@ class Tsvi(template):
         display_df = pd.DataFrame()
         for channel in event.new:
             key = channel.split("/")[0]
-            #dfs.append(self.channel_summary_dict[key].loc[channel,
-            #                                              CH_SUMMARY_DISPLAY_COLUMNS])
-            display_df = pd.concat([display_df,(self.channel_summary_dict[key].loc[[channel], CH_SUMMARY_DISPLAY_COLUMNS])])
-        #display_df = pd.concat(dfs)
+            dfs.append(self.channel_summary_dict[key].loc[[channel],CH_SUMMARY_DISPLAY_COLUMNS])
+        display_df = pd.concat(dfs)
         target.value = display_df
         return
 
@@ -264,8 +262,6 @@ class Tsvi(template):
 
     def make_plots(self):
         make_plots(self)
-
-
 
 
     def display_plots(self):
