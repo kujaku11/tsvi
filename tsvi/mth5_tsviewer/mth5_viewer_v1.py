@@ -31,30 +31,21 @@ from mth5.mth5 import MTH5
 
 from tsvi.mth5_tsviewer.helpers import channel_summary_columns_to_display
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
+from tsvi.mth5_tsviewer.helpers import get_templates_dict
 from tsvi.mth5_tsviewer.helpers import make_plots
 from tsvi.mth5_tsviewer.helpers import list_h5s_to_plot
 from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 
 
-
-# ipynb command
-#pn.extension("ipywidgets")
-
 hv.extension("bokeh")
 hv.extension("matplotlib")
-
 
 xarray.set_options(keep_attrs = True)
 
 # Make template choice dictionary
 # More information about template choices and functionality is here:
 # https://panel.holoviz.org/user_guide/Templates.html
-TEMPLATES = {}
-TEMPLATES["bootstrap"] = pn.template.BootstrapTemplate
-TEMPLATES["fast"] = pn.template.FastListTemplate
-TEMPLATES["golden"] = pn.template.GoldenTemplate
-TEMPLATES["grid"] = pn.template.FastGridTemplate
-
+TEMPLATES = get_templates_dict()
 # Define Template for this instance
 template_key = "golden"
 template = TEMPLATES[template_key]
