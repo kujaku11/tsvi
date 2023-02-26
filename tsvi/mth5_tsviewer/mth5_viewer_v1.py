@@ -42,11 +42,8 @@ hv.extension("matplotlib")
 
 xarray.set_options(keep_attrs = True)
 
-# Make template choice dictionary
-# More information about template choices and functionality is here:
-# https://panel.holoviz.org/user_guide/Templates.html
-TEMPLATES = get_templates_dict()
 # Define Template for this instance
+TEMPLATES = get_templates_dict()
 template_key = "golden"
 template = TEMPLATES[template_key]
 
@@ -54,18 +51,6 @@ displayed_columns = channel_summary_columns_to_display()
 
 COLORMAP = "Magma"
 
-def create_button(button_type):
-    pass
-
-
-def load_data_from_mth5():
-    """
-
-    Returns
-    -------
-
-    """
-    pass
 
 class Tsvi(template):
 
