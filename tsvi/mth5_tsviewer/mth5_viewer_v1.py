@@ -296,6 +296,14 @@ class Tsvi(template):
     def clear_notes(self, event):
         #Clear annotator dataframe
         return
+        
+    def annotate(self, *args, **params):
+        plot2 = hv.Curve(data)
+        notes = hv.annotate.instance()
+        note_tab = pn.Row(notes.compose(plot2, (hv.Rectangles(data = None).opts(alpha = 0.5))),
+                        name = "Annotate")
+        tabs.append(note_tab)
+        tabs.active = 1
 
 
 tsvi = Tsvi(plot_width=900, plot_height=200)
