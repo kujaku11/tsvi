@@ -40,7 +40,7 @@ from tsvi.mth5_tsviewer.helpers import memory_usage_widget
 hv.extension("bokeh")
 hv.extension("matplotlib")
 
-xarray.set_options(keep_attrs = True)
+xarray.set_options(keep_attrs=True)
 
 # Define Template for this instance
 TEMPLATES = get_templates_dict()
@@ -58,7 +58,6 @@ class Tsvi(template):
     memory_usage = memory_usage_widget()
     streaming_resources = False
 
-
     def __init__(self, *args, **kwargs):
         """
         instance variables:
@@ -69,10 +68,10 @@ class Tsvi(template):
         args
         kwargs
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
         self.plot_width = kwargs.get("plot_width", 900)
         self.plot_height = kwargs.get("plot_height", 450)
-        self.annotatable = kwargs.get("annotatable",False)#True)
+        self.annotatable = kwargs.get("annotatable", False)  # True)
         self.colormap = COLORMAP
         self.channel_summary_dict = {}
         self.file_paths = {}
@@ -80,11 +79,13 @@ class Tsvi(template):
         self.plots = {}
 
         # Tab Creation
-        self.tabs = pn.Tabs(self.make_folders_tab(),
-                            self.make_channels_tab(),
-                            self.make_plots_tab(),
-                            closable=False,
-                            dynamic=False)
+        self.tabs = pn.Tabs(
+            self.make_folders_tab(),
+            self.make_channels_tab(),
+            self.make_plots_tab(),
+            closable=False,
+            dynamic=False,
+        )
         self.main.append(self.tabs)
 
         # Annotator
@@ -94,44 +95,44 @@ class Tsvi(template):
         # Sidebar
         self.make_sidebar()
 
-        self.start_resource_stream()
-
-
     def make_sidebar(self):
         button_width = 150
-        #Define Checkboxes and Buttons
+        # Define Checkboxes and Buttons
         self.datashade_checkbox = pn.widgets.Checkbox(name="Datashade", value=True)
         self.shared_axes_checkbox = pn.widgets.Checkbox(name="Shared Axes", value=True)
 
-        self.clear_plots_button = pn.widgets.Button(name="Clear Plots",
-                                                    button_type="danger",
-                                                    width=button_width)
+        self.clear_plots_button = pn.widgets.Button(
+            name="Clear Plots", button_type="danger", width=button_width
+        )
         self.clear_plots_button.on_click(self.clear_plots)
 
-        self.clear_channels_button = pn.widgets.Button(name="Clear Channels",
-                                                       button_type="danger",
-                                                       width=button_width)
+        self.clear_channels_button = pn.widgets.Button(
+            name="Clear Channels", button_type="danger", width=button_width
+        )
         self.clear_channels_button.on_click(self.clear_channels)
 
-        self.save_notes_input = pn.widgets.TextInput(value='Notes.csv', name='Save to .csv')
-        self.save_notes_button = pn.widgets.Button(name="Save Notes",
-                                                   button_type="success",
-                                                   width=button_width)
+        self.save_notes_input = pn.widgets.TextInput(
+            value="Notes.csv", name="Save to .csv"
+        )
+        self.save_notes_button = pn.widgets.Button(
+            name="Save Notes", button_type="success", width=button_width
+        )
         self.save_notes_button.on_click(self.save_notes)
 
-        self.load_notes_input = pn.widgets.TextInput(value='Notes.csv', name='Load from .csv')
-        self.load_notes_button = pn.widgets.Button(name="Load Notes",
-                                                   button_type="success",
-                                                   width=button_width)
+        self.load_notes_input = pn.widgets.TextInput(
+            value="Notes.csv", name="Load from .csv"
+        )
+        self.load_notes_button = pn.widgets.Button(
+            name="Load Notes", button_type="success", width=button_width
+        )
         self.load_notes_button.on_click(self.load_notes)
 
-        self.clear_notes_button = pn.widgets.Button(name="Clear Notes",
-                                                    button_type="danger",
-                                                    width=button_width)
+        self.clear_notes_button = pn.widgets.Button(
+            name="Clear Notes", button_type="danger", width=button_width
+        )
         self.clear_notes_button.on_click(self.clear_notes)
 
         self.layout_sidebar()
-        self.start_resource_stream()
 
     def layout_sidebar(self):
         self.sidebar.append(self.cpu_usage)
@@ -147,46 +148,57 @@ class Tsvi(template):
         self.sidebar.append(self.clear_notes_button)
 
     def make_folders_tab(self):
-        self.files = pn.widgets.FileSelector(name="Files",
-                                             directory="~",
-                                             file_pattern="*.h5",
-                                             height=550,
-                                             )
-        self.select_button = pn.widgets.Button(name="Select Files",
-                                               button_type="primary")
+        self.files = pn.widgets.FileSelector(
+            name="Files",
+            directory="~",
+            file_pattern="*.h5",
+            height=550,
+        )
+        self.select_button = pn.widgets.Button(
+            name="Select Files", button_type="primary"
+        )
         self.select_button.on_click(self.update_channels)
         tab = pn.Column(self.files, self.select_button, name="Folders")
         return tab
 
     def make_channels_tab(self):
-        self.channels = pn.widgets.MultiSelect(objects=[],
-                                               name="Channels",
-                                               height=200)
+        self.channels = pn.widgets.MultiSelect(options=[], name="Channels", height=200)
         self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
         self.channel_summary = pd.DataFrame(columns=CH_SUMMARY_DISPLAY_COLUMNS)
-        self.summary_display = pn.widgets.DataFrame(self.channel_summary,
-                                                    height=500,
-                                                    width=1000)
-        self.channels.link(self.summary_display, callbacks={"value": self.display_channel_summary})
+        self.summary_display = pn.widgets.DataFrame(
+            self.channel_summary, height=500, width=1000
+        )
+        self.channels.link(
+            self.summary_display, callbacks={"value": self.display_channel_summary}
+        )
 
         # Controls
-        self.plotting_library = pn.widgets.RadioButtonGroup(name="Plotting Library",
-                                                            options = ["bokeh",
-                                                                       "matplotlib",
-                                                                       #"plotly"
-                                                                       ],
-                                                            button_type="primary",
-                                                            width=200)
-        self.subtract_mean_checkbox = pn.widgets.Checkbox(name="Subtract Mean",
-                                                         value=True)
+        self.plotting_library = pn.widgets.RadioButtonGroup(
+            name="Plotting Library",
+            options=[
+                "bokeh",
+                "matplotlib",
+                # "plotly"
+            ],
+            button_type="primary",
+            width=200,
+        )
+        self.subtract_mean_checkbox = pn.widgets.Checkbox(
+            name="Subtract Mean", value=True
+        )
 
         channel_and_plot = pn.Column(self.channels, self.plot_button)
         controls = pn.Column(self.plotting_library, self.subtract_mean_checkbox)
 
-        tab = pn.Column(pn.Row(channel_and_plot, controls,),
-                        self.summary_display,
-                        name="Channels")
+        tab = pn.Column(
+            pn.Row(
+                channel_and_plot,
+                controls,
+            ),
+            self.summary_display,
+            name="Channels",
+        )
         return tab
 
     def make_plots_tab(self):
@@ -195,22 +207,24 @@ class Tsvi(template):
         tab = pn.Column(self.graphs, name="Plot")
         return tab
 
-    #def make_help_tab(self):
+    # def make_help_tab(self):
     #    tab = pn.panel()
     #    return
 
     def start_resource_stream(self):
         if self.streaming_resources:
             return
+
         def resouce_usage_psutil():
             return psutil.virtual_memory().percent, psutil.cpu_percent()
+
         def stream_resourcesx():
             mem, cpu = resouce_usage_psutil()
             self.cpu_usage.value = cpu
             self.memory_usage.value = mem
+
         pn.state.add_periodic_callback(stream_resourcesx, period=1000, count=None)
         self.streaming_resources = True
-
 
     def update_channels(self, event):
         """
@@ -230,32 +244,43 @@ class Tsvi(template):
             file_name = file_path.name
             self.file_paths[file_name] = file_path
             m = MTH5()
-            m.open_mth5(file_path, mode = "r")
+            m.open_mth5(file_path, mode="r")
             df = m.channel_summary.to_dataframe()
             m.close_mth5()
             df["file"] = file_name
-            df["channel_path"] = (df["file"] + "/" + df["station"] + "/" + df["run"] + "/" + df["component"])
-            df.set_index("channel_path", inplace = True)
+            df["channel_path"] = (
+                df["file"]
+                + "/"
+                + df["station"]
+                + "/"
+                + df["run"]
+                + "/"
+                + df["component"]
+            )
+            df.set_index("channel_path", inplace=True)
             self.channel_summary_dict[file_name] = df
             new_channels.extend(self.channel_summary_dict[file_name].index)
         self.channels.options = list(new_channels)
-        self.tabs.active = 1 #swicth user to tab 1
+        self.tabs.active = 1  # swicth user to tab 1
         return
 
     def clear_channels(self, event):
         self.channels.options = list()
         return
 
-    def display_channel_summary(self, target,  event):
+    def display_channel_summary(self, target, event):
         dfs = []
         display_df = pd.DataFrame()
         for channel in event.new:
             key = channel.split("/")[0]
-            dfs.append(self.channel_summary_dict[key].loc[[channel],CH_SUMMARY_DISPLAY_COLUMNS])
+            dfs.append(
+                self.channel_summary_dict[key].loc[
+                    [channel], CH_SUMMARY_DISPLAY_COLUMNS
+                ]
+            )
         display_df = pd.concat(dfs)
         target.value = display_df
         return
-
 
     def preprocess_xarrays(self):
         for xarray in self.xarrays:
@@ -264,7 +289,6 @@ class Tsvi(template):
 
     def make_plots(self):
         make_plots(self)
-
 
     def display_plots(self):
         for plot in self.plot_cards:
@@ -286,17 +310,25 @@ class Tsvi(template):
         del self.plot_cards[:]
 
     def save_notes(self, event):
-        #Save notes from annotator dataframe to csv
-        df_combined = pd.concat([annotator.annotated.dframe().assign(run = label) for annotator, label in zip(self.annotators.values(), self.annotators.keys())])
+        # Save notes from annotator dataframe to csv
+        df_combined = pd.concat(
+            [
+                annotator.annotated.dframe().assign(run=label)
+                for annotator, label in zip(
+                    self.annotators.values(), self.annotators.keys()
+                )
+            ]
+        )
         df_combined.to_csv(self.save_notes_input.value, index=False)
 
     def load_notes(self, event):
         return
 
     def clear_notes(self, event):
-        #Clear annotator dataframe
+        # Clear annotator dataframe
         return
 
 
 tsvi = Tsvi(plot_width=900, plot_height=200)
-tsvi.show()
+tsvi.start_resource_stream()
+tsvi.servable()
