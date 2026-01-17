@@ -6,6 +6,9 @@ import numpy as np
 import h5py
 from mth5.mth5 import MTH5
 
+# Threshold for enabling datashader
+DATASHADE_THRESHOLD = 200_000
+
 
 def cpu_usage_widget():
     cpu_usage = pn.indicators.Number(
@@ -119,52 +122,70 @@ def invert(event, data):
 
 
 def make_plots(obj):
+    """
+    Build vertically stacked, shared-axis time-series subplots.
+    Datashader is OFF by default, but automatically enabled for large datasets.
+    No reactive wrapper is used.
+    """
+
     hv.output(backend=obj.plotting_library.value)
 
     data_dict = get_mth5_data_as_xarrays(obj.selected_channels)
-    curves = []
+    panes = []
     n = len(data_dict)
 
     for idx, (selected_channel, data) in enumerate(data_dict.items()):
 
+        # Optional preprocessing
         if obj.subtract_mean_checkbox.value:
             data = data - data.mean()
+
+        # Decide whether to use datashader
+        use_datashader = len(data) > DATASHADE_THRESHOLD
 
         # hvPlot callable
         plot_fn = hvplot.hvPlot(
             data,
-            width=obj.plot_width,
-            height=200,
+            height=obj.plot_height,
             cmap=obj.colormap,
             ylabel=data.units,
             title=selected_channel,
+            responsive=True,
+            max_width=1200,
         )
 
+        # Store callable for external use
         obj.plots[selected_channel] = plot_fn
 
-        # Determine x-axis visibility for this subplot
+        # Determine x-axis visibility
         is_last = idx == n - 1
         xaxis_opt = "bottom" if is_last else None
 
-        if obj.plotting_library.value == "bokeh":
-            # Build reactive element WITH axis options applied inside
-            reactive_curve = pn.rx(
-                lambda ds, shared, xa=xaxis_opt: plot_fn(
-                    datashade=ds, shared_axes=shared
-                ).opts(xaxis=xa)
-            )(
-                obj.datashade_checkbox.rx.value,
-                obj.shared_axes_checkbox.rx.value,
-            )
-            curves.append(reactive_curve)
-
+        # Build the actual plot
+        if use_datashader:
+            curve = plot_fn(datashade=True, shared_axes=True)
         else:
-            curves.append(plot_fn().opts(xaxis=xaxis_opt))
+            curve = plot_fn(shared_axes=True)
 
-    # Build layout as a vertical column
-    layout = hv.Layout(curves).cols(1).opts(shared_axes=True)
+        # Apply axis visibility
+        curve = curve.opts(xaxis=xaxis_opt)
 
-    obj.plot_cards = [pn.Card(layout, title="Channel Subplots")]
+        # Wrap in a Panel pane
+        pane = pn.pane.HoloViews(curve, sizing_mode="scale_both", max_width=1200)
+        panes.append(pane)
+
+    # Stack all plots vertically
+    column = pn.Column(*panes, sizing_mode="stretch_width", margin=0, max_width=1200)
+
+    # Wrap in a card
+    obj.plot_cards = [
+        pn.Card(
+            column,
+            title="Channel Subplots",
+            sizing_mode="stretch_width",
+            max_width=1200,
+        )
+    ]
 
 
 def get_mth5_data_as_xarrays(selected_channels):

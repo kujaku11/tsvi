@@ -216,7 +216,7 @@ class Tsvi(template):
 
     def make_plots_tab(self):
         self.plot_cards = []
-        self.graphs = pn.Column()
+        self.graphs = pn.Column(sizing_mode="stretch_width", margin=0)
         tab = pn.Column(self.graphs, name="Plot")
         return tab
 
@@ -365,6 +365,6 @@ class Tsvi(template):
         return
 
 
-tsvi = Tsvi(plot_width=900, plot_height=200)
+tsvi = Tsvi(plot_width=700, plot_height=200)
 tsvi.start_resource_stream()
 tsvi.servable()
