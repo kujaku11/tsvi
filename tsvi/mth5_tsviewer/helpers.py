@@ -157,9 +157,9 @@ def make_plots(obj):
         # Store callable for external use
         obj.plots[selected_channel] = plot_fn
 
-        # Determine x-axis visibility
-        is_last = idx == n - 1
-        xaxis_opt = "bottom" if is_last else None
+        # # Determine x-axis visibility
+        # is_last = idx == n - 1
+        # xaxis_opt = "bottom" if is_last else None
 
         # Build the actual plot
         if use_datashader:
@@ -168,7 +168,15 @@ def make_plots(obj):
             curve = plot_fn(shared_axes=True)
 
         # Apply axis visibility
-        curve = curve.opts(xaxis=xaxis_opt)
+        curve = curve.opts(
+            # xaxis=xaxis_opt,
+            gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
+            xticks=20,
+        )
+
+        # Hide x-labels for all but the last subplot
+        if idx < len(data_dict) - 1:
+            curve = curve.opts(xlabel="")
 
         # Wrap in a Panel pane
         pane = pn.pane.HoloViews(curve, sizing_mode="stretch_width", max_width=1000)
