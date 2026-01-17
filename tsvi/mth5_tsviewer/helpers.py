@@ -1,8 +1,11 @@
 import holoviews as hv
 import hvplot
 import panel as pn
+import numpy as np
 
+import h5py
 from mth5.mth5 import MTH5
+
 
 def cpu_usage_widget():
     cpu_usage = pn.indicators.Number(
@@ -16,8 +19,9 @@ def cpu_usage_widget():
     )
     return cpu_usage
 
+
 def memory_usage_widget():
-    memory_usage= pn.indicators.Number(
+    memory_usage = pn.indicators.Number(
         name="Memory",
         value=0,
         format="{value}%",
@@ -27,6 +31,7 @@ def memory_usage_widget():
         width=50,
     )
     return memory_usage
+
 
 def list_h5s_to_plot(channels_list):
     """
@@ -52,15 +57,22 @@ def list_h5s_to_plot(channels_list):
 
 def channel_summary_columns_to_display():
     # Configure the displayed columns in the Channels Tab
-    displayed_columns = ["survey", "station", "run",
-                         #"latitude", "longitude", "elevation",
-                         "component",
-                         "start", "end", "n_samples", "sample_rate",
-                         "measurement_type",
-                         #"azimuth", "tilt",
-                         #"units"
-                         ]
+    displayed_columns = [
+        "survey",
+        "station",
+        "run",
+        # "latitude", "longitude", "elevation",
+        "component",
+        "start",
+        "end",
+        "n_samples",
+        "sample_rate",
+        "measurement_type",
+        # "azimuth", "tilt",
+        # "units"
+    ]
     return displayed_columns
+
 
 # def plot_bokeh(xarray, shaded = False, shared = False):
 #     plot = xarray.hvplot(
@@ -90,135 +102,97 @@ def get_templates_dict():
 
 
 def invert(event, data):
-  data = -1 * data
-  return data
+    data = -1 * data
+    return data
 
-  # def get_card_controls():
-  # THe idea here is to track the buttons /widgets that we want beside the plot
-  #     annotate_button = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
-  #     invert_button = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
-  #     # def invert(self, *args, **params):
-  #     #   data = -1 * data
-  #     # invert_button.on_click(invert(event, data))
-  #     controls = pn.Column(annotate_button,
-  #                          invert_button,
-  #                          sizing_mode = "fixed", width = 200,)
-  #     return controls
+    # def get_card_controls():
+    # THe idea here is to track the buttons /widgets that we want beside the plot
+    #     annotate_button = pn.widgets.Button(name = "Annotate", button_type = "primary", width = 100)
+    #     invert_button = pn.widgets.Button(name = "Invert", button_type = "primary", width = 100)
+    #     # def invert(self, *args, **params):
+    #     #   data = -1 * data
+    #     # invert_button.on_click(invert(event, data))
+    #     controls = pn.Column(annotate_button,
+    #                          invert_button,
+    #                          sizing_mode = "fixed", width = 200,)
+    #     return controls
+
+
 def make_plots(obj):
-    """
-    Gets the data and plots it.
+    hv.output(backend=obj.plotting_library.value)
 
-    ToDo: Factor into
-    - get data
-    - preprocess
-    - plot data
+    data_dict = get_mth5_data_as_xarrays(obj.selected_channels)
+    curves = []
+    n = len(data_dict)
 
-    takes a list of mth5 files and then it converts that list to channels,
-    it needs to know what channels were used (self.cahnnels
+    for idx, (selected_channel, data) in enumerate(data_dict.items()):
 
-
-    Parameters
-    ----------
-    obj: __main__.Tsvi object
-
-
-    """
-    hv.output(backend = obj.plotting_library.value)
-    new_cards  = []
-    used_files = list_h5s_to_plot(obj.channels.value)
-
-    # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
-    # plot_cards = make_plots(data_dict)
-
-    # Keyed with the selected_channel from below
-    data_dict = get_mth5_data_as_xarrays(obj.channels.value, obj.file_paths)
-    # data_dict = preprocess(data_dict, obj.subtract_mean_checkbox.value)
-    # plot_cards = make_plots(data_dict)
-    # from holoviews.operation.datashader import datashade
-    for selected_channel,data in data_dict.items():
-        selected_file, station, run, channel = selected_channel.split("/")
-        ylabel = data.type
-        if obj.subtract_mean_checkbox.value == True:
+        if obj.subtract_mean_checkbox.value:
             data = data - data.mean()
-            plot = hvplot.hvPlot(data,
-                                 width = obj.plot_width,
-                                 height = obj.plot_height,
-                                 cmap = obj.colormap,
-                                 ylabel = ylabel)
-            #plot = datashade(hv.Curve(data))
-            obj.plots[selected_channel] = plot
-            if obj.plotting_library.value == "bokeh":
-                bound_plot = pn.bind(plot,
-                                     datashade = obj.datashade_checkbox,
-                                     shared_axes = obj.shared_axes_checkbox)
 
-            elif obj.plotting_library.value == "matplotlib":
-                fig = Figure(figsize = (8,6))
+        # hvPlot callable
+        plot_fn = hvplot.hvPlot(
+            data,
+            width=obj.plot_width,
+            height=200,
+            cmap=obj.colormap,
+            ylabel=data.units,
+            title=selected_channel,
+        )
 
-            invert_button = pn.widgets.Button(name="Invert", button_type="primary", width=100)
+        obj.plots[selected_channel] = plot_fn
 
-            # invert_button.on_click(invert(event, data))
-            controls = pn.Column(
-                invert_button,
-                sizing_mode = "fixed", width = 200,)
-            plot_pane = pn.Pane(bound_plot)
-            plot_tab = pn.Row(plot_pane,
-                              controls,
-                              name = run + "/" + channel)
-            if obj.annotatable:
-                obj.annotators[selected_channel] = hv.annotate.instance()
-                note_tab = pn.Pane(obj.annotators[selected_channel].compose(plot.line(datashade=False).opts(width = 700, height = 200),
-                                                                            obj.annotators[selected_channel](
-                                                                                hv.Rectangles(data= []).opts(alpha=0.5),
-                                                                                annotations = ["Label"],
-                                                                                name = "Notes")),
-                                   name = "Notes")
+        # Determine x-axis visibility for this subplot
+        is_last = idx == n - 1
+        xaxis_opt = "bottom" if is_last else None
 
-                tabs = pn.Tabs(plot_tab,
-                               note_tab)
-            else:
-                tabs = pn.Tabs(plot_tab)
-            new_card = pn.Card(tabs,
-                               title = selected_channel)
+        if obj.plotting_library.value == "bokeh":
+            # Build reactive element WITH axis options applied inside
+            reactive_curve = pn.rx(
+                lambda ds, shared, xa=xaxis_opt: plot_fn(
+                    datashade=ds, shared_axes=shared
+                ).opts(xaxis=xa)
+            )(
+                obj.datashade_checkbox.rx.value,
+                obj.shared_axes_checkbox.rx.value,
+            )
+            curves.append(reactive_curve)
 
-            new_cards.append(new_card)
+        else:
+            curves.append(plot_fn().opts(xaxis=xaxis_opt))
+
+    # Build layout as a vertical column
+    layout = hv.Layout(curves).cols(1).opts(shared_axes=True)
+
+    obj.plot_cards = [pn.Card(layout, title="Channel Subplots")]
 
 
-    obj.plot_cards = new_cards
-    return
-
-
-def get_mth5_data_as_xarrays(selected_channels, file_paths):
+def get_mth5_data_as_xarrays(selected_channels):
     """
-    ToDo:
-    - This can be modified in future to support chunking read in
-    - interaction with the intake package belongs here.
-    - This function works on multiple mth5 files in sequence. Another way to do this
-    would to be to invert the two for loops so that the outer loop iterates over
-    selected_channels first and then a one-line function accesses the data for that
-    channel.
+    Updated to use MTH5 context manager and selected channels dict
+    is now keyed by filename and values are list of HDF5 path to the
+    channel data.
 
     Parameters
     ----------
-    selected_channels: list
-    file_paths
-    kwargs
+    selected_channels: dict
+        Dictionary where keys are filenames and values are lists of HDF5 paths to the
+        channel data.
 
     Returns
     -------
 
     """
     out_dict = {}
-    used_files = list_h5s_to_plot(selected_channels)
-    for file in used_files:
-        m = MTH5()
-        m.open_mth5(file_paths[file], mode = "r")
-        for selected_channel in selected_channels:
-            selected_file, station, run, channel = selected_channel.split("/")
-            if selected_file == file:
-                data = m.get_channel(station, run, channel).to_channel_ts().to_xarray()
-                # data = data.rename(data.attrs["mth5_type"]): "ex"--> "Electric"
-                #self.xarrays.append(data)
-                out_dict[selected_channel] = data
-        m.close_mth5()
+    for mth5_fn, channels in selected_channels.items():
+        with MTH5() as m:
+
+            m.open_mth5(mth5_fn, mode="r")
+            for hdf5_path in channels:
+                # hdf5_path is the string path to the channel (e.g., '/station/run/channel')
+                ch = m.from_reference(hdf5_path)
+                data = ch.to_channel_ts().to_xarray()
+                ch_key = f"{ch.station_metadata.id}.{ch.run_metadata.id}.{ch.metadata.component}"
+                out_dict[ch_key] = data
+
     return out_dict

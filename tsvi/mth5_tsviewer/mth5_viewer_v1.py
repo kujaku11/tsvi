@@ -9,6 +9,7 @@ There are four main Panels in this UI
 
 """
 
+import h5py
 from matplotlib.backends.backend_agg import FigureCanvas
 from matplotlib.figure import Figure
 
@@ -28,6 +29,8 @@ import xarray
 import mt_metadata
 import mth5
 from mth5.mth5 import MTH5
+from mth5 import CHANNEL_DTYPE
+
 
 from tsvi.mth5_tsviewer.helpers import channel_summary_columns_to_display
 from tsvi.mth5_tsviewer.helpers import cpu_usage_widget
@@ -77,6 +80,8 @@ class Tsvi(template):
         self.file_paths = {}
         self.xarrays = []
         self.plots = {}
+        self.channel_summary = pd.DataFrame(columns=CHANNEL_DTYPE.names)
+        self.selected_channels = {}
 
         # Tab Creation
         self.tabs = pn.Tabs(
@@ -162,16 +167,24 @@ class Tsvi(template):
         return tab
 
     def make_channels_tab(self):
-        self.channels = pn.widgets.MultiSelect(options=[], name="Channels", height=200)
+        # self.channels = pn.widgets.MultiSelect(options=[], name="Channels", height=200)
+        self.channels = pn.widgets.Tabulator(
+            self.channel_summary[CH_SUMMARY_DISPLAY_COLUMNS],
+            selectable=True,
+            height=500,
+        )
+        self.channels.param.watch(self.select_channels, "selection")
+
+        # plot selected channels button
         self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
-        self.channel_summary = pd.DataFrame(columns=CH_SUMMARY_DISPLAY_COLUMNS)
-        self.summary_display = pn.widgets.DataFrame(
-            self.channel_summary, height=500, width=1000
-        )
-        self.channels.link(
-            self.summary_display, callbacks={"value": self.display_channel_summary}
-        )
+
+        # self.summary_display = pn.widgets.DataFrame(
+        #     self.channel_summary, height=500, width=1000
+        # )
+        # self.channels.link(
+        #     self.summary_display, callbacks={"value": self.display_channel_summary}
+        # )
 
         # Controls
         self.plotting_library = pn.widgets.RadioButtonGroup(
@@ -196,7 +209,7 @@ class Tsvi(template):
                 channel_and_plot,
                 controls,
             ),
-            self.summary_display,
+            # self.summary_display,
             name="Channels",
         )
         return tab
@@ -230,6 +243,9 @@ class Tsvi(template):
         """
         This populates the channel_list in the Channels Tab
 
+        h5py References are not JSON serializable, so we convert them to bytes.  It is
+        suggested to store the path instead, but this is more straightforward for now.
+
         N.B. If you had two mth5 files in two different directories, but with the same
         filename, you will encounter problems.
 
@@ -238,49 +254,69 @@ class Tsvi(template):
         event: param.parameterized.Event
             A dummy variable needed for onclick (and param watchers in general)
         """
-        new_channels = []
+        full_df = pd.DataFrame()
         for file_path in self.files.value:
             file_path = pathlib.Path(file_path)
-            file_name = file_path.name
-            self.file_paths[file_name] = file_path
-            m = MTH5()
-            m.open_mth5(file_path, mode="r")
-            df = m.channel_summary.to_dataframe()
-            m.close_mth5()
-            df["file"] = file_name
-            df["channel_path"] = (
-                df["file"]
-                + "/"
-                + df["station"]
-                + "/"
-                + df["run"]
-                + "/"
-                + df["component"]
-            )
-            df.set_index("channel_path", inplace=True)
-            self.channel_summary_dict[file_name] = df
-            new_channels.extend(self.channel_summary_dict[file_name].index)
-        self.channels.options = list(new_channels)
+            # file_name = file_path.name
+            # self.file_paths[file_name] = file_path
+            with MTH5() as m:
+                m = m.open_mth5(file_path, mode="r")
+                df = m.channel_summary.to_dataframe()
+                df["file"] = file_path.as_posix()
+                # Store the HDF5 path instead of reference bytes
+                df["hdf5_reference"] = df["hdf5_reference"].apply(
+                    lambda ref: m.get_reference_path(ref)
+                )
+                df.drop(
+                    columns=["run_hdf5_reference", "station_hdf5_reference"],
+                    inplace=True,
+                )
+
+            full_df = pd.concat([full_df, df])
+        self.channel_summary = full_df.reset_index(drop=True)
+        self.channels.value = self.channel_summary[CH_SUMMARY_DISPLAY_COLUMNS]
         self.tabs.active = 1  # swicth user to tab 1
         return
 
+    def select_channels(self, event):
+        """
+        create a dict of selected channels from the tabulator selection where
+        the keys are file names and the values are lists of channel references
+        within that file.
+
+        Parameters
+        ----------
+        event : _type_
+            _description_
+        """
+        self.selected_channels = {}
+        if event.new:
+            for idx in event.new:
+                row = self.channel_summary.iloc[idx]
+                file_name = row["file"]
+                channel_reference = row["hdf5_reference"]
+                try:
+                    self.selected_channels[file_name].append(channel_reference)
+                except KeyError:
+                    self.selected_channels[file_name] = [channel_reference]
+
     def clear_channels(self, event):
-        self.channels.options = list()
+        self.selected_channels = {}
         return
 
-    def display_channel_summary(self, target, event):
-        dfs = []
-        display_df = pd.DataFrame()
-        for channel in event.new:
-            key = channel.split("/")[0]
-            dfs.append(
-                self.channel_summary_dict[key].loc[
-                    [channel], CH_SUMMARY_DISPLAY_COLUMNS
-                ]
-            )
-        display_df = pd.concat(dfs)
-        target.value = display_df
-        return
+    # def display_channel_summary(self, target, event):
+    #     dfs = []
+    #     display_df = pd.DataFrame()
+    #     for channel in event.new:
+    #         key = channel.split("/")[0]
+    #         dfs.append(
+    #             self.channel_summary_dict[key].loc[
+    #                 [channel], CH_SUMMARY_DISPLAY_COLUMNS
+    #             ]
+    #         )
+    #     display_df = pd.concat(dfs)
+    #     target.value = display_df
+    #     return
 
     def preprocess_xarrays(self):
         for xarray in self.xarrays:
