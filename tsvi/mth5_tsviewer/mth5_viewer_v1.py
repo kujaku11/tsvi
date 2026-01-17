@@ -216,7 +216,7 @@ class Tsvi(template):
 
     def make_plots_tab(self):
         self.plot_cards = []
-        self.graphs = pn.Column(sizing_mode="stretch_width", margin=0)
+        self.graphs = pn.Column(sizing_mode="stretch_width", margin=0, max_width=1000)
         tab = pn.Column(self.graphs, name="Plot")
         return tab
 

@@ -171,11 +171,11 @@ def make_plots(obj):
         curve = curve.opts(xaxis=xaxis_opt)
 
         # Wrap in a Panel pane
-        pane = pn.pane.HoloViews(curve, sizing_mode="scale_both", max_width=1200)
+        pane = pn.pane.HoloViews(curve, sizing_mode="stretch_width", max_width=1000)
         panes.append(pane)
 
     # Stack all plots vertically
-    column = pn.Column(*panes, sizing_mode="stretch_width", margin=0, max_width=1200)
+    column = pn.Column(*panes, sizing_mode="stretch_width", margin=0, max_width=1000)
 
     # Wrap in a card
     obj.plot_cards = [
@@ -183,7 +183,7 @@ def make_plots(obj):
             column,
             title="Channel Subplots",
             sizing_mode="stretch_width",
-            max_width=1200,
+            max_width=1000,
         )
     ]
 
