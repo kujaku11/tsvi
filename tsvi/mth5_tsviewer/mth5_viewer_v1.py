@@ -58,13 +58,6 @@ class Tsvi(param.Parameterized):
         # -------------------------
         # Widgets
         # -------------------------
-        self.files = pn.widgets.FileSelector(
-            name="Select MTH5 Files",
-            directory="~",  # or your preferred default
-            file_pattern="*.h5",
-            height=300,
-        )
-        self.files.param.watch(self.update_channels, "value")
 
         self.run_or_channel_checkbox = pn.widgets.Checkbox(
             name="Pick Runs", value=False
@@ -145,7 +138,6 @@ class Tsvi(param.Parameterized):
             directory="~",
             file_pattern="*.h5",
             height=300,
-            multiple=True,
         )
         self.files.param.watch(self.update_channels, "value")
 
