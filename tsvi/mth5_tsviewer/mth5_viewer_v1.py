@@ -58,10 +58,11 @@ class Tsvi(param.Parameterized):
         # -------------------------
         # Widgets
         # -------------------------
-        self.files = pn.widgets.FileInput(
+        self.files = pn.widgets.FileSelector(
             name="Select MTH5 Files",
-            accept=".h5",
-            multiple=True,
+            directory="~",  # or your preferred default
+            file_pattern="*.h5",
+            height=300,
         )
         self.files.param.watch(self.update_channels, "value")
 
@@ -138,6 +139,17 @@ class Tsvi(param.Parameterized):
     # Tabs
     # =========================================================
     def make_channels_tab(self):
+        # FileSelector at the top
+        self.files = pn.widgets.FileSelector(
+            name="Select MTH5 Files",
+            directory="~",
+            file_pattern="*.h5",
+            height=300,
+            multiple=True,
+        )
+        self.files.param.watch(self.update_channels, "value")
+
+        # Tabulator below
         self.channels_table = pn.widgets.Tabulator(
             self.channel_summary[CH_SUMMARY_DISPLAY_COLUMNS],
             selectable=True,
@@ -145,12 +157,15 @@ class Tsvi(param.Parameterized):
         )
         self.channels_table.param.watch(self.select_channels, "selection")
 
+        # Controls on the right
         controls = pn.Column(
             self.plotting_library,
             self.subtract_mean_checkbox,
         )
 
+        # Layout: FileSelector (row 1), Tabulator (row 2)
         return pn.Column(
+            self.files,
             pn.Row(self.channels_table, controls),
             self.plot_button,
         )
@@ -167,21 +182,15 @@ class Tsvi(param.Parameterized):
     # Callbacks
     # =========================================================
     def update_channels(self, event):
-        print("Files uploaded event:", event.new)
+        print("Selected files:", event.new)
 
         full_df = pd.DataFrame()
 
-        # event.new is a list of bytes when multiple=True
-        for i, file_bytes in enumerate(event.new):
-            # Panel does NOT reliably populate filename in templates
-            # So we create our own temporary file
-            tmp_path = pathlib.Path(f"uploaded_{i}.h5")
-            tmp_path.write_bytes(file_bytes)
-
+        for file_path in event.new:  # event.new is list[pathlib.Path]
             with MTH5() as m:
-                m = m.open_mth5(tmp_path, mode="r")
+                m = m.open_mth5(file_path, mode="r")
                 df = m.channel_summary.to_dataframe()
-                df["file"] = str(tmp_path)
+                df["file"] = file_path.as_posix()
                 df["hdf5_reference"] = df["hdf5_reference"].apply(
                     lambda ref: m.get_reference_path(ref)
                 )
