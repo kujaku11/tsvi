@@ -151,15 +151,11 @@ def make_plots(obj):
             ylabel=data.units,
             title=selected_channel,
             responsive=True,
-            max_width=1200,
+            max_width=obj.plot_max_width,
         )
 
         # Store callable for external use
         obj.plots[selected_channel] = plot_fn
-
-        # # Determine x-axis visibility
-        # is_last = idx == n - 1
-        # xaxis_opt = "bottom" if is_last else None
 
         # Build the actual plot
         if use_datashader:
@@ -170,6 +166,7 @@ def make_plots(obj):
         # Apply axis visibility
         curve = curve.opts(
             # xaxis=xaxis_opt,
+            show_grid=True,
             gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
             xticks=20,
         )
@@ -179,19 +176,22 @@ def make_plots(obj):
             curve = curve.opts(xlabel="")
 
         # Wrap in a Panel pane
-        pane = pn.pane.HoloViews(curve, sizing_mode="stretch_width", max_width=1000)
+        pane = pn.pane.HoloViews(
+            curve, sizing_mode="stretch_width", max_width=obj.plot_max_width
+        )
         panes.append(pane)
 
     # Stack all plots vertically
-    column = pn.Column(*panes, sizing_mode="stretch_width", margin=0, max_width=1000)
-
+    column = pn.Column(
+        *panes, sizing_mode="stretch_width", margin=0, max_width=obj.plot_max_width
+    )
     # Wrap in a card
     obj.plot_cards = [
         pn.Card(
             column,
             title="Channel Subplots",
             sizing_mode="stretch_width",
-            max_width=1000,
+            max_width=obj.plot_max_width,
         )
     ]
 
