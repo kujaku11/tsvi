@@ -132,7 +132,6 @@ def make_plots(obj):
 
     data_dict = get_mth5_data_as_xarrays(obj.selected_channels)
     panes = []
-    n = len(data_dict)
 
     for idx, (selected_channel, data) in enumerate(data_dict.items()):
 
