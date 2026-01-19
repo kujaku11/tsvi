@@ -12,15 +12,18 @@ from mth5.mth5 import MTH5
 from mth5 import CHANNEL_DTYPE, RUN_SUMMARY_DTYPE
 
 from tsvi.mth5_tsviewer.helpers import (
-    channel_summary_columns_to_display,
     cpu_usage_widget,
     memory_usage_widget,
-    make_plots,
 )
 
 hv.extension("bokeh")
 xarray.set_options(keep_attrs=True)
 
+# --------------------------------------------------------------
+# Global Constants
+# --------------------------------------------------------------
+# Threshold for enabling datashader
+DATASHADE_THRESHOLD = 200_000
 CH_SUMMARY_DISPLAY_COLUMNS = [
     "survey",
     "station",
@@ -41,10 +44,15 @@ RUN_SUMMARY_DISPLAY_COLUMNS = [
     "end",
     "n_samples",
     "sample_rate",
+    "input_channels",
+    "output_channels",
 ]
 COLORMAP = "Magma"
 
 
+# =========================================================
+# Main TSVI Class
+# =========================================================
 class Tsvi(param.Parameterized):
 
     # Resource widgets (static)
@@ -250,23 +258,149 @@ class Tsvi(param.Parameterized):
 
     def select_channels(self, event):
         self.selected_channels = {}
+        self.selected_runs = {}
         if event.new:
             for idx in event.new:
-                row = self.channel_summary.iloc[idx]
-                self.selected_channels.setdefault(row["file"], []).append(
-                    row["hdf5_reference"]
-                )
+                if self.choose_runs:
+                    row = self.run_summary.iloc[idx]
+                    self.selected_runs.setdefault(row["file"], []).append(
+                        row["hdf5_reference"]
+                    )
+                else:
+                    row = self.channel_summary.iloc[idx]
+                    self.selected_channels.setdefault(row["file"], []).append(
+                        row["hdf5_reference"]
+                    )
 
     def make_and_display_plots(self, *args):
-        self.tabs.active = 1
+        self.tabs.active = 2
         self.make_plots()
         self.display_plots()
 
+    def plot_channel_data(self, ch_data, ch_key):
+
+        # Decide whether to use datashader
+        use_datashader = len(ch_data) > DATASHADE_THRESHOLD
+
+        plot_fn = hvplot.hvPlot(
+            ch_data,
+            height=self.plot_height,
+            cmap=self.colormap,
+            ylabel=ch_data.units,
+            title=ch_key,
+            responsive=True,
+            max_width=self.plot_width_max,
+        )
+
+        # Store callable for external use
+        self.plots[ch_key] = plot_fn
+
+        # Build the actual plot
+        if use_datashader:
+            curve = plot_fn(datashade=True, shared_axes=True)
+        else:
+            curve = plot_fn(shared_axes=True)
+
+        # Apply axis visibility
+        curve = curve.opts(
+            # xaxis=xaxis_opt,
+            show_grid=True,
+            gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
+            xticks=20,
+        )
+
+        # Wrap in a Panel pane
+        pane = pn.pane.HoloViews(
+            curve, sizing_mode="stretch_width", max_width=self.plot_width_max
+        )
+        return pane
+
     def make_plots(self):
-        make_plots(self)
+        """
+        Build vertically stacked, shared-axis time-series subplots.
+        Datashader is OFF by default, but automatically enabled for large datasets.
+        No reactive wrapper is used.
+        """
+
+        hv.output(backend=self.plotting_library.value)
+
+        data_dict = self.get_mth5_data_as_xarrays()
+        print(f"Plotting: {data_dict.keys()}")
+        panes = []
+
+        for selected_channel, data in data_dict.items():
+
+            # Optional preprocessing
+            if self.subtract_mean_checkbox.value:
+                data = data - data.mean()
+
+            if self.choose_runs:
+                for ch in data.data_vars:
+                    ch_da = data[ch]
+                    ch_key = f"{selected_channel}.{ch_da.component}"
+                    pane = self.plot_channel_data(ch_da, ch_key)
+                    panes.append(pane)
+            else:
+                panes.append(self.plot_channel_data(data, selected_channel))
+
+        # Stack all plots vertically
+        column = pn.Column(
+            *panes, sizing_mode="stretch_width", margin=0, max_width=self.plot_width_max
+        )
+        # Wrap in a card
+        self.plot_cards = [
+            pn.Card(
+                column,
+                title="Time Series Plots",
+                sizing_mode="stretch_width",
+                max_width=self.plot_width_max,
+            )
+        ]
+
+    def get_mth5_data_as_xarrays(self):
+        """
+        Updated to use MTH5 context manager and selected channels dict
+        is now keyed by filename and values are list of HDF5 path to the
+        channel data.
+
+        Parameters
+        ----------
+        selected_channels: dict
+            Dictionary where keys are filenames and values are lists of HDF5 paths to the
+            channel data.
+
+        Returns
+        -------
+
+        """
+        out_dict = {}
+        if self.choose_runs:
+            print("Getting runs")
+            for mth5_fn, runs in self.selected_runs.items():
+                with MTH5() as m:
+                    m.open_mth5(mth5_fn, mode="r")
+                    for run_hdf5_path in runs:
+                        run = m.from_reference(run_hdf5_path)
+                        data = run.to_runts().dataset
+                        run_key = f"{run.survey_metadata.id}.{run.station_metadata.id}.{run.metadata.id}"
+                        out_dict[run_key] = data
+        else:
+            print("Getting channels")
+            for mth5_fn, channels in self.selected_channels.items():
+                with MTH5() as m:
+                    m.open_mth5(mth5_fn, mode="r")
+                    if not self.choose_runs:
+                        for hdf5_path in channels:
+                            # hdf5_path is the string path to the channel (e.g., '/station/run/channel')
+                            ch = m.from_reference(hdf5_path)
+                            data = ch.to_channel_ts().to_xarray()
+                            ch_key = f"{ch.survey_metadata.id}.{ch.station_metadata.id}.{ch.run_metadata.id}.{ch.metadata.component}"
+                            out_dict[ch_key] = data
+
+        return out_dict
 
     def display_plots(self):
-        self.graphs.objects = list(self.plots.values())
+        self.graphs.objects = self.plot_cards
 
     def clear_plots(self, event=None):
         self.xarrays = []
