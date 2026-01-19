@@ -50,14 +50,43 @@ RUN_SUMMARY_DISPLAY_COLUMNS = [
 COLORMAP = "Magma"
 
 
+def get_templates_dict():
+    """
+    Make template choice dictionary
+    More information about template choices and functionality is here:
+    https://panel.holoviz.org/user_guide/Templates.html
+    Returns
+    templates: dict
+
+    -------
+
+    """
+    templates = {}
+    templates["bootstrap"] = pn.template.BootstrapTemplate
+    templates["fast"] = pn.template.FastListTemplate
+    templates["golden"] = pn.template.GoldenTemplate
+    templates["grid"] = pn.template.FastGridTemplate
+    return templates
+
+
 # =========================================================
 # Main TSVI Class
 # =========================================================
 class Tsvi(param.Parameterized):
+    """
+    A simple Panel application to plot timeseries contained
+    within a MTH5 file.
 
-    # Resource widgets (static)
-    cpu_usage = cpu_usage_widget()
-    memory_usage = memory_usage_widget()
+    Parameters
+    ----------
+    param : _type_
+        _description_
+
+    Returns
+    -------
+    _type_
+        _description_
+    """
 
     # Parameters
     plot_width = param.Integer(default=900)
@@ -91,6 +120,25 @@ class Tsvi(param.Parameterized):
         # -------------------------
         # Widgets
         # -------------------------
+        self.cpu_usage = pn.indicators.Number(
+            name="CPU",
+            value=0,
+            format="{value}%",
+            colors=[(50, "green"), (75, "orange"), (100, "red")],
+            font_size="13pt",
+            title_size="8pt",
+            width=50,
+        )
+
+        self.memory_usage = pn.indicators.Number(
+            name="Memory",
+            value=0,
+            format="{value}%",
+            colors=[(50, "green"), (75, "orange"), (100, "red")],
+            font_size="13pt",
+            title_size="8pt",
+            width=50,
+        )
 
         self.run_or_channel_checkbox = pn.widgets.Checkbox(
             name="Pick Runs", value=False
