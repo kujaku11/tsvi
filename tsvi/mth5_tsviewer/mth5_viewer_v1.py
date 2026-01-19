@@ -7,6 +7,9 @@ import xarray
 
 import holoviews as hv
 import hvplot.xarray
+from holoviews.operation.datashader import datashade
+from holoviews.operation import decimate
+import colorcet as cc
 
 from mth5.mth5 import MTH5
 from mth5 import CHANNEL_DTYPE, RUN_SUMMARY_DTYPE
@@ -24,6 +27,10 @@ xarray.set_options(keep_attrs=True)
 # --------------------------------------------------------------
 # Threshold for enabling datashader
 DATASHADE_THRESHOLD = 500_000
+
+# Color palette for plotting
+PALETTE = cc.b_glasbey_category10[:5]  # or use Set1 manually
+
 CH_SUMMARY_DISPLAY_COLUMNS = [
     "survey",
     "station",
@@ -106,6 +113,7 @@ class Tsvi(param.Parameterized):
 
         template_key = "golden"
         self.template = get_templates_dict()[template_key](title="TSVI")
+        self.color_palette = PALETTE
 
         # -------------------------
         # State
@@ -157,7 +165,7 @@ class Tsvi(param.Parameterized):
         self.plot_button.on_click(self.make_and_display_plots)
 
         self.subtract_mean_checkbox = pn.widgets.Checkbox(
-            name="Subtract Mean", value=False
+            name="Subtract Mean", value=True
         )
         self.subtract_mean_checkbox.param.watch(self.make_and_display_plots, "value")
         # Subplot row selectors (initialized empty, populated after plots are made)
@@ -320,17 +328,23 @@ class Tsvi(param.Parameterized):
         self.make_plots()
         self.display_plots()
 
-    def plot_channel_data(self, ch_data, ch_key):
+    def plot_channel_data(self, ch_data, ch_key, color_index):
 
-        # Decide whether to use datashader
+        # --- 1. Smarter threshold ---
+        # Datashader is slower than a normal curve until ~500k points
         use_datashader = len(ch_data) > DATASHADE_THRESHOLD
 
+        color = self.color_palette[color_index % len(self.color_palette)]
+        print(f"Plotting {ch_key} with color {color}, datashader={use_datashader}")
+
+        # --- 2. Build base hvPlot callable ---
         plot_fn = hvplot.hvPlot(
             ch_data,
             height=self.plot_height,
             cmap=self.colormap,
             ylabel=ch_data.units,
             title=ch_key,
+            color=color,
             responsive=True,
             max_width=self.plot_width_max,
             xlabel="",
@@ -339,24 +353,45 @@ class Tsvi(param.Parameterized):
         # Store callable for external use
         self.plots[ch_key] = plot_fn
 
-        # Build the actual plot
-        if use_datashader:
-            curve = plot_fn(datashade=True, shared_axes=True)
-        else:
-            curve = plot_fn(shared_axes=True)
+        # --- 3. Build the actual curve ---
+        base_curve = plot_fn(shared_axes=True)
 
-        # Apply axis visibility
+        if use_datashader:
+            # Fast raster for rendering
+            shaded = datashade(
+                base_curve,
+                aggregator="any",
+                height=self.plot_height,
+            )
+
+            # Lightweight decimated curve for hover
+            hover_curve = decimate(base_curve).opts(
+                line_alpha=1,  # invisible line
+                color=color,
+                line_width=1.5,
+                tools=["hover"],  # enable hover
+                hover_line_alpha=1,
+                hover_color=color,
+            )
+
+            curve = shaded * hover_curve
+        else:
+            curve = base_curve
+
+        # --- 5. Apply axis/grid styling ---
         curve = curve.opts(
-            # xaxis=xaxis_opt,
             show_grid=True,
             gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
             xticks=20,
         )
 
-        # Wrap in a Panel pane
+        # --- 6. Wrap in Panel pane ---
         pane = pn.pane.HoloViews(
-            curve, sizing_mode="stretch_width", max_width=self.plot_width_max
+            curve,
+            sizing_mode="stretch_width",
+            max_width=self.plot_width_max,
         )
+
         return pane
 
     def make_plots(self):
@@ -367,23 +402,24 @@ class Tsvi(param.Parameterized):
         """
 
         data_dict = self.get_mth5_data_as_xarrays()
+        # self.color_palette = cc.b_glasbey_category10[: len(data_dict.keys())]
         print(f"Plotting: {data_dict.keys()}")
         self.plot_panes = {}  # key: plot key, value: pane
 
-        for selected_channel, data in data_dict.items():
+        for index, (selected_channel, data) in enumerate(data_dict.items()):
 
             # Optional preprocessing
             if self.subtract_mean_checkbox.value:
                 data = data - data.mean()
 
             if self.choose_runs:
-                for ch in data.data_vars:
+                for index, ch in enumerate(data.data_vars):
                     ch_da = data[ch]
                     ch_key = f"{selected_channel}.{ch_da.component}"
-                    pane = self.plot_channel_data(ch_da, ch_key)
+                    pane = self.plot_channel_data(ch_da, ch_key, index)
                     self.plot_panes[ch_key] = pane
             else:
-                pane = self.plot_channel_data(data, selected_channel)
+                pane = self.plot_channel_data(data, selected_channel, index)
                 self.plot_panes[selected_channel] = pane
 
         # Set up subplot row selectors in the sidebar
