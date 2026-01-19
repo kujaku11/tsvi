@@ -676,7 +676,6 @@ class Tsvi(param.Parameterized):
                 )
 
                 # Build hover overlay safely
-                print(self.show_hover_checkbox.value)
                 if self.show_hover_checkbox.value:
                     hover_elems = {}
                     for k, obj in hv_objs.items():
