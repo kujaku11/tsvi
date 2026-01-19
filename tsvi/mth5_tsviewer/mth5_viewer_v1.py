@@ -23,7 +23,7 @@ xarray.set_options(keep_attrs=True)
 # Global Constants
 # --------------------------------------------------------------
 # Threshold for enabling datashader
-DATASHADE_THRESHOLD = 200_000
+DATASHADE_THRESHOLD = 500_000
 CH_SUMMARY_DISPLAY_COLUMNS = [
     "survey",
     "station",
@@ -92,7 +92,7 @@ class Tsvi(param.Parameterized):
     plot_width = param.Integer(default=900)
     plot_height = param.Integer(default=450)
     annotatable = param.Boolean(default=False)
-    choose_runs = param.Boolean(default=False)
+    choose_runs = param.Boolean(default=True)
     plot_width_max = param.Integer(default=1000)
     colormap = param.String(default=COLORMAP)
 
@@ -140,9 +140,7 @@ class Tsvi(param.Parameterized):
             width=50,
         )
 
-        self.run_or_channel_checkbox = pn.widgets.Checkbox(
-            name="Pick Runs", value=False
-        )
+        self.run_or_channel_checkbox = pn.widgets.Checkbox(name="Pick Runs", value=True)
         self.run_or_channel_checkbox.param.watch(self.choose_runs_or_channels, "value")
 
         self.clear_plots_button = pn.widgets.Button(
@@ -159,8 +157,9 @@ class Tsvi(param.Parameterized):
         self.plot_button.on_click(self.make_and_display_plots)
 
         self.subtract_mean_checkbox = pn.widgets.Checkbox(
-            name="Subtract Mean", value=True
+            name="Subtract Mean", value=False
         )
+        self.subtract_mean_checkbox.param.watch(self.make_and_display_plots, "value")
         # Subplot row selectors (initialized empty, populated after plots are made)
         self.subplot_row_selectors = {}  # key: channel key, value: Select widget
         self.subplot_row_panel = pn.Column(name="Subplot Row Assignment")
@@ -369,7 +368,6 @@ class Tsvi(param.Parameterized):
 
         data_dict = self.get_mth5_data_as_xarrays()
         print(f"Plotting: {data_dict.keys()}")
-        panes = []
         self.plot_panes = {}  # key: plot key, value: pane
 
         for selected_channel, data in data_dict.items():
@@ -472,11 +470,10 @@ class Tsvi(param.Parameterized):
             else:
                 # Overlay: extract HoloViews objects from panes
                 overlays = [self.plot_panes[k].object for k in keys]
-                from holoviews import Overlay
-
                 overlay = overlays[0]
-                for o in overlays[1:]:
-                    overlay = overlay * o
+
+                for pane in overlays[1:]:
+                    overlay = overlay * pane
                 # Wrap overlay in a Panel pane
                 pane = pn.pane.HoloViews(
                     overlay, sizing_mode="stretch_width", max_width=self.plot_width_max
