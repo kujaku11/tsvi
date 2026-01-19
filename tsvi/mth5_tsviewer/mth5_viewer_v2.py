@@ -72,7 +72,6 @@ class Tsvi(param.Parameterized):
     plot_width = param.Integer(default=900)
     plot_height = param.Integer(default=450)
     plot_width_max = param.Integer(default=1000)
-    use_datashader = param.Boolean(default=False)
 
     annotatable = param.Boolean(default=False)
     choose_runs = param.Boolean(
@@ -152,6 +151,11 @@ class Tsvi(param.Parameterized):
 
         self.run_or_channel_checkbox = pn.widgets.Checkbox(name="Pick Runs", value=True)
         self.run_or_channel_checkbox.param.watch(self._on_choose_runs_checkbox, "value")
+
+        self.show_hover_checkbox = pn.widgets.Checkbox(
+            name="Show Hover Overlay", value=False
+        )
+        self.show_hover_checkbox.param.watch(self._on_overlay_hover_changed, "value")
 
         self.clear_plots_button = pn.widgets.Button(
             name="Clear Plots", button_type="danger"
@@ -248,6 +252,7 @@ class Tsvi(param.Parameterized):
             self.subtract_mean_checkbox,
             self.combine_subplots_checkbox,
             self.lock_color_identity,
+            self.show_hover_checkbox,
             self.palette_selector,
             self.reset_order_button,
             self.subplot_row_panel,
@@ -333,6 +338,9 @@ class Tsvi(param.Parameterized):
         if self.data_dict:
             self._build_or_update_plots()
             self._render_plots()
+
+    def _on_overlay_hover_changed(self, event):
+        self._render_plots()
 
     # =========================================================
     # Data loading and selection
@@ -622,6 +630,14 @@ class Tsvi(param.Parameterized):
         self._update_subplot_row_selectors()
         self._render_plots()
 
+    def _get_length(self, key):
+        data = self.data_dict[key.rsplit(".", 1)[0]]
+        if isinstance(data, xarray.DataArray):
+            return len(data)
+        elif isinstance(data, xarray.Dataset):
+            return data.sizes["time"]
+        return 0
+
     def _render_plots(self):
         if not self.plot_channel_curves:
             self.graphs.objects = []
@@ -645,11 +661,11 @@ class Tsvi(param.Parameterized):
 
             # Determine if datashader is needed for this row
             use_datashader = any(
-                len(self.data_dict[k.rsplit(".", 1)[0]]) > DATASHADE_THRESHOLD
-                for k in keys
+                self._get_length(k) > DATASHADE_THRESHOLD for k in keys
             )
 
             if use_datashader:
+                print(f"Datashading row {row_idx} with channels: {keys}")
                 color_key = {k: self.channel_colors[k] for k in keys}
 
                 shaded = datashade(
@@ -660,19 +676,25 @@ class Tsvi(param.Parameterized):
                 )
 
                 # Build hover overlay safely
-                hover_elems = {}
-                for k, obj in hv_objs.items():
-                    dec = decimate(obj)
-                    if dec is not None:
-                        hover_elems[k] = dec.opts(
-                            tools=["hover"],
-                            line_width=1.5,
-                            color=self.channel_colors[k],
-                        )
+                print(self.show_hover_checkbox.value)
+                if self.show_hover_checkbox.value:
+                    hover_elems = {}
+                    for k, obj in hv_objs.items():
+                        dec = decimate(obj)
+                        if dec is not None:
+                            hover_elems[k] = dec.opts(
+                                tools=["hover"],
+                                line_width=0.0,
+                                color=self.channel_colors[k],
+                            )
 
-                hover_overlay = (
-                    hv.NdOverlay(hover_elems, kdims="channel") if hover_elems else None
-                )
+                    hover_overlay = (
+                        hv.NdOverlay(hover_elems, kdims="channel")
+                        if hover_elems
+                        else None
+                    )
+                else:
+                    hover_overlay = None
                 final = shaded * hover_overlay if hover_overlay else shaded
 
             else:
