@@ -658,6 +658,7 @@ class Tsvi(param.Parameterized):
             if use_datashader:
                 print(f"Datashading row {row_idx} with channels: {keys}")
                 color_key = {k: self.channel_colors[k] for k in keys}
+                print(color_key)
 
                 shaded = datashade(
                     overlay_raw,
