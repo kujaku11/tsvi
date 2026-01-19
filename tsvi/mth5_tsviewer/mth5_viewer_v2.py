@@ -5,6 +5,7 @@ import panel as pn
 import param
 import psutil
 import xarray
+import numpy as np
 
 import holoviews as hv
 import hvplot.xarray
@@ -69,9 +70,9 @@ class Tsvi(param.Parameterized):
     # -------------------------
     # Parameters (reactive state)
     # -------------------------
-    plot_width = param.Integer(default=900)
+    plot_width = param.Integer(default=950)
     plot_height = param.Integer(default=450)
-    plot_width_max = param.Integer(default=1000)
+    plot_width_max = param.Integer(default=950)
 
     annotatable = param.Boolean(default=False)
     choose_runs = param.Boolean(
@@ -82,6 +83,9 @@ class Tsvi(param.Parameterized):
 
     combine_subplots = param.Boolean(default=True)
     _ordering_version = param.Integer(default=0)
+    normalize_amplitude = param.Boolean(
+        default=False, doc="Normalize each curve before datashading"
+    )
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -156,6 +160,11 @@ class Tsvi(param.Parameterized):
             name="Show Hover Overlay", value=False
         )
         self.show_hover_checkbox.param.watch(self._on_overlay_hover_changed, "value")
+
+        self.normalize_checkbox = pn.widgets.Checkbox(
+            name="Normalize Amplitude", value=False
+        )
+        self.normalize_checkbox.param.watch(self._on_normalize_changed, "value")
 
         self.clear_plots_button = pn.widgets.Button(
             name="Clear Plots", button_type="danger"
@@ -251,6 +260,7 @@ class Tsvi(param.Parameterized):
             self.run_or_channel_checkbox,
             self.subtract_mean_checkbox,
             self.combine_subplots_checkbox,
+            self.normalize_checkbox,
             self.lock_color_identity,
             self.show_hover_checkbox,
             self.palette_selector,
@@ -340,6 +350,10 @@ class Tsvi(param.Parameterized):
             self._render_plots()
 
     def _on_overlay_hover_changed(self, event):
+        self._render_plots()
+
+    def _on_normalize_changed(self, event):
+        self.normalize_amplitude = event.new
         self._render_plots()
 
     # =========================================================
@@ -547,48 +561,6 @@ class Tsvi(param.Parameterized):
 
         return curve
 
-    # def _make_channel_pane(self, ch_data, ch_key, color_index):
-    #     """
-    #     Return a raw HoloViews curve (no datashader here).
-    #     Datashader is applied later at the row level so that
-    #     all channels in the row share one DynamicMap.
-    #     """
-
-    #     color = self._get_channel_color(ch_key, color_index)
-    #     self.channel_colors[ch_key] = color
-
-    #     if len(ch_data) > DATASHADE_THRESHOLD:
-    #         self.use_datashader = True
-    #         print(
-    #             f"Channel {ch_key} exceeds datashade threshold with {len(ch_data)} points. Using datashader."
-    #         )
-
-    #     plot_fn = hvplot.hvPlot(
-    #         ch_data,
-    #         height=self.plot_height,
-    #         cmap=self.colormap,
-    #         ylabel=getattr(ch_data, "units", ""),
-    #         title=ch_key,
-    #         responsive=True,
-    #         max_width=self.plot_width_max,
-    #         xlabel="",
-    #     )
-
-    #     base_curve = plot_fn(shared_axes=True).opts(
-    #         color=color,
-    #         tools=["hover"],
-    #         show_grid=True,
-    #         gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
-    #         xticks=20,
-    #     )
-
-    #     # IMPORTANT: return the raw curve, not a pane
-    #     return pn.pane.HoloViews(
-    #         base_curve,
-    #         sizing_mode="stretch_width",
-    #         max_width=self.plot_width_max,
-    #     )
-
     def _init_row_assignments(self):
         keys = list(self.plot_channel_curves.keys())
         if not self.subplot_row_assignments or set(
@@ -620,7 +592,7 @@ class Tsvi(param.Parameterized):
                 return _cb
 
             selector.param.watch(_make_callback(key), "value")
-            row = pn.Row(pn.pane.Markdown(f"**{key}**", width=200), selector)
+            row = pn.Row(pn.pane.Markdown(f"**{key}**", width=150), selector)
             self.subplot_row_panel.append(row)
 
     def _reset_ordering(self, event=None):
@@ -655,13 +627,32 @@ class Tsvi(param.Parameterized):
             if not keys:
                 continue
 
-            # Collect raw curves
-            hv_objs = {k: self.plot_channel_curves[k] for k in keys}
-            overlay_raw = hv.NdOverlay(hv_objs, kdims="channel")
-
             # Determine if datashader is needed for this row
             use_datashader = any(
                 self._get_length(k) > DATASHADE_THRESHOLD for k in keys
+            )
+
+            # Collect raw curves
+            hv_objs = {}
+            for k in keys:
+                curve = self.plot_channel_curves[k]
+                xs = curve.dimension_values(0)
+                ys = curve.dimension_values(1)
+
+                if self.normalize_amplitude and np.ptp(ys) > 0:
+                    ys = (ys - ys.min()) / np.ptp(ys)
+                elif self.normalize_amplitude:
+                    ys = ys * 0  # flat line if constant
+
+                # Clone with unified vdims for datashading
+                unified = hv.Curve((xs, ys), kdims=["time"], vdims=["amplitude"]).opts(
+                    color=self.channel_colors[k],
+                    title=k,
+                )
+                hv_objs[k] = unified
+
+            overlay_raw = hv.NdOverlay(hv_objs, kdims="channel").opts(
+                width=self.plot_width
             )
 
             if use_datashader:
@@ -673,33 +664,34 @@ class Tsvi(param.Parameterized):
                     aggregator="any",
                     height=self.plot_height,
                     color_key=color_key,
+                    width=self.plot_width,
                 )
 
                 # Build hover overlay safely
                 if self.show_hover_checkbox.value:
-                    hover_elems = {}
-                    for k, obj in hv_objs.items():
-                        dec = decimate(obj)
-                        if dec is not None:
-                            hover_elems[k] = dec.opts(
-                                tools=["hover"],
-                                line_width=0.0,
-                                color=self.channel_colors[k],
-                            )
+                    print("Adding a hover overlay does not work yet. Skipping.")
+                #     hover_elems = {}
+                #     for k, obj in hv_objs.items():
+                #         dec = decimate(obj)
+                #         if dec is not None:
+                #             hover_elems[k] = dec.opts(
+                #                 tools=["hover"],
+                #                 line_width=0.0,
+                #                 color=self.channel_colors[k],
+                #             )
 
-                    hover_overlay = (
-                        hv.NdOverlay(hover_elems, kdims="channel")
-                        if hover_elems
-                        else None
-                    )
-                else:
-                    hover_overlay = None
-                final = shaded * hover_overlay if hover_overlay else shaded
+                #     if hover_elems:
+                #         hover_overlay = hv.NdOverlay(hover_elems, kdims="channel")
+                #         final = shaded * hover_overlay
+                #     else:
+                #         final = shaded
+                # else:
+                final = shaded
 
             else:
                 final = overlay_raw
 
-            final = final.opts(frame_width=self.plot_width_max)
+            final = final.opts(frame_width=self.plot_width)
 
             pane = pn.pane.HoloViews(
                 final,
