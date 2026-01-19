@@ -95,7 +95,6 @@ class Tsvi(param.Parameterized):
         self.run_or_channel_checkbox = pn.widgets.Checkbox(
             name="Pick Runs", value=False
         )
-
         self.run_or_channel_checkbox.param.watch(self.choose_runs_or_channels, "value")
 
         self.clear_plots_button = pn.widgets.Button(
@@ -111,16 +110,13 @@ class Tsvi(param.Parameterized):
         self.plot_button = pn.widgets.Button(name="Plot", button_type="primary")
         self.plot_button.on_click(self.make_and_display_plots)
 
-        self.plotting_library = pn.widgets.RadioButtonGroup(
-            name="Plotting Library",
-            options=["bokeh", "matplotlib"],
-            button_type="primary",
-            width=200,
-        )
-
         self.subtract_mean_checkbox = pn.widgets.Checkbox(
             name="Subtract Mean", value=True
         )
+        # Subplot row selectors (initialized empty, populated after plots are made)
+        self.subplot_row_selectors = {}  # key: channel key, value: Select widget
+        self.subplot_row_panel = pn.Column(name="Subplot Row Assignment")
+        # No plot_order_selector to watch; selectors will be created dynamically
 
         # -------------------------
         # Tabs
@@ -159,8 +155,8 @@ class Tsvi(param.Parameterized):
             self.cpu_usage,
             self.memory_usage,
             self.run_or_channel_checkbox,
-            self.plotting_library,
             self.subtract_mean_checkbox,
+            self.subplot_row_panel,
             self.plot_button,
             self.clear_plots_button,
             self.clear_channels_button,
@@ -290,6 +286,7 @@ class Tsvi(param.Parameterized):
             title=ch_key,
             responsive=True,
             max_width=self.plot_width_max,
+            xlabel="",
         )
 
         # Store callable for external use
@@ -322,11 +319,10 @@ class Tsvi(param.Parameterized):
         No reactive wrapper is used.
         """
 
-        hv.output(backend=self.plotting_library.value)
-
         data_dict = self.get_mth5_data_as_xarrays()
         print(f"Plotting: {data_dict.keys()}")
         panes = []
+        self.plot_panes = {}  # key: plot key, value: pane
 
         for selected_channel, data in data_dict.items():
 
@@ -339,23 +335,29 @@ class Tsvi(param.Parameterized):
                     ch_da = data[ch]
                     ch_key = f"{selected_channel}.{ch_da.component}"
                     pane = self.plot_channel_data(ch_da, ch_key)
-                    panes.append(pane)
+                    self.plot_panes[ch_key] = pane
             else:
-                panes.append(self.plot_channel_data(data, selected_channel))
+                pane = self.plot_channel_data(data, selected_channel)
+                self.plot_panes[selected_channel] = pane
 
-        # Stack all plots vertically
-        column = pn.Column(
-            *panes, sizing_mode="stretch_width", margin=0, max_width=self.plot_width_max
-        )
-        # Wrap in a card
-        self.plot_cards = [
-            pn.Card(
-                column,
-                title="Time Series Plots",
-                sizing_mode="stretch_width",
-                max_width=self.plot_width_max,
+        # Set up subplot row selectors in the sidebar
+        plot_keys = list(self.plot_panes.keys())
+        self.subplot_row_selectors = {}
+        self.subplot_row_panel.clear()
+        n = len(plot_keys)
+        row_options = [str(i + 1) for i in range(n)]
+        for i, ch_key in enumerate(plot_keys):
+            selector = pn.widgets.Select(
+                options=row_options,
+                value=row_options[i],
+                width=60,
             )
-        ]
+            selector.param.watch(self.display_plots, "value")
+            self.subplot_row_selectors[ch_key] = selector
+            row = pn.Row(pn.pane.Markdown(f"**{ch_key}**", width=150), selector)
+            self.subplot_row_panel.append(row)
+        # Initial display
+        self.display_plots()
 
     def get_mth5_data_as_xarrays(self):
         """
@@ -399,8 +401,54 @@ class Tsvi(param.Parameterized):
 
         return out_dict
 
-    def display_plots(self):
-        self.graphs.objects = self.plot_cards
+    def display_plots(self, *events):
+        # Group channels by subplot row number (as string)
+        if not hasattr(self, "plot_panes") or not self.plot_panes:
+            self.graphs.objects = []
+            return
+
+        # Build mapping: row number (str) -> list of channel keys
+        row_map = {}
+        for ch_key, selector in self.subplot_row_selectors.items():
+            row = selector.value
+            row_map.setdefault(row, []).append(ch_key)
+
+        # Sort rows numerically
+        sorted_rows = sorted(row_map.keys(), key=lambda x: int(x))
+        panes = []
+        for row in sorted_rows:
+            keys = row_map[row]
+            # Overlay all channels assigned to this row
+            if len(keys) == 1:
+                panes.append(self.plot_panes[keys[0]])
+            else:
+                # Overlay: extract HoloViews objects from panes
+                overlays = [self.plot_panes[k].object for k in keys]
+                from holoviews import Overlay
+
+                overlay = overlays[0]
+                for o in overlays[1:]:
+                    overlay = overlay * o
+                # Wrap overlay in a Panel pane
+                pane = pn.pane.HoloViews(
+                    overlay, sizing_mode="stretch_width", max_width=self.plot_width_max
+                )
+                panes.append(pane)
+
+        column = pn.Column(
+            *panes,
+            sizing_mode="stretch_width",
+            margin=0,
+            max_width=self.plot_width_max,
+        )
+        self.graphs.objects = [
+            pn.Card(
+                column,
+                title="Time Series Plots",
+                sizing_mode="stretch_width",
+                max_width=self.plot_width_max,
+            )
+        ]
 
     def clear_plots(self, event=None):
         self.xarrays = []
