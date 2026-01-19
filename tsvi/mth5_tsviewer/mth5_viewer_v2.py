@@ -1,4 +1,5 @@
 import pathlib
+from turtle import color
 import pandas as pd
 import panel as pn
 import param
@@ -70,7 +71,8 @@ class Tsvi(param.Parameterized):
     # -------------------------
     plot_width = param.Integer(default=900)
     plot_height = param.Integer(default=450)
-    plot_width_max = param.Integer(default=1200)
+    plot_width_max = param.Integer(default=1000)
+    use_datashader = param.Boolean(default=False)
 
     annotatable = param.Boolean(default=False)
     choose_runs = param.Boolean(
@@ -101,7 +103,7 @@ class Tsvi(param.Parameterized):
         self.selected_runs = {}
 
         self.data_dict = {}  # key -> xarray object
-        self.plot_panes = {}  # key -> pn.pane.HoloViews
+        self.plot_channel_curves = {}  # key -> pn.pane.HoloViews
         self.datashade_cache = {}  # key -> datashaded hv object
 
         self.subplot_row_assignments = {}  # key -> row index (1-based int)
@@ -110,6 +112,7 @@ class Tsvi(param.Parameterized):
         # Color palettes and maps
         # -------------------------
         # Semantic MT palettes
+        self.channel_colors = {}
         self.semantic_electric_palette = ["#4477AA", "#66CCEE", "#228833"]
         self.semantic_magnetic_palette = ["#EE6677", "#AA3377", "#CCBB44"]
         self.semantic_aux_palette = ["#BBBBBB", "#999999", "#777777"]
@@ -267,15 +270,20 @@ class Tsvi(param.Parameterized):
         return pn.Column(self.files, sizing_mode="stretch_width")
 
     def _make_df_tab(self):
+
+        df = self.channel_summary.copy()
+        df["start"] = pd.to_datetime(df["start"], unit="s").dt.strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        df["end"] = pd.to_datetime(df["end"], unit="s").dt.strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+
         self.channels_table = pn.widgets.Tabulator(
-            self.channel_summary[CH_SUMMARY_DISPLAY_COLUMNS],
+            df[CH_SUMMARY_DISPLAY_COLUMNS],
             selectable=True,
             sizing_mode="stretch_both",
             margin=(10, 0, 0, 0),
-            formatters={
-                "start": {"type": "datetime", "format": "iso"},
-                "end": {"type": "datetime", "format": "iso"},
-            },
         )
 
         self.channels_table.param.watch(self._on_table_selection, "selection")
@@ -476,10 +484,10 @@ class Tsvi(param.Parameterized):
     # =========================================================
     def _build_or_update_plots(self):
         """
-        Build or update per-channel panes in self.plot_panes
+        Build or update per-channel curves in self.plot_channel_curves
         based on self.data_dict and current settings.
         """
-        self.plot_panes = {}
+        self.plot_channel_curves = {}
         keys = list(self.data_dict.keys())
 
         for idx, key in enumerate(keys):
@@ -496,82 +504,85 @@ class Tsvi(param.Parameterized):
                     ch_da = data[ch]
                     ch_key = f"{key}.{ch_da.component}"
                     color_index = idx + j
-                    pane = self._make_channel_pane(ch_da, ch_key, color_index)
-                    self.plot_panes[ch_key] = pane
+                    curve = self._make_channel_curve(ch_da, ch_key, color_index)
+                    self.plot_channel_curves[ch_key] = curve
             else:
                 color_index = idx
-                pane = self._make_channel_pane(data, key, color_index)
-                self.plot_panes[key] = pane
-
+                curve = self._make_channel_curve(data, key, color_index)
+                self.plot_channel_curves[key] = curve
         self._init_row_assignments()
 
-    def _make_channel_pane(self, ch_data, ch_key, color_index):
+    def _make_channel_curve(self, ch_data, ch_key, color_index):
         """
-        Create a pn.pane.HoloViews for a single channel with fully dynamic
-        datashader behavior (resamples on zoom/pan).
+        Return a pure HoloViews Curve (no datashader, no Pane).
+        Used for row-level overlays and datashading.
         """
 
         color = self._get_channel_color(ch_key, color_index)
+        self.channel_colors[ch_key] = color
 
-        # Base hvPlot curve (static)
-        plot_fn = hvplot.hvPlot(
-            ch_data,
+        # Assume time is the first dimension
+        dim = list(ch_data.dims)[0]
+        x = ch_data[dim]
+        y = ch_data
+
+        curve = hv.Curve((x, y), kdims=[dim], vdims=[ch_data.name]).opts(
             height=self.plot_height,
-            cmap=self.colormap,
             ylabel=getattr(ch_data, "units", ""),
             title=ch_key,
-            responsive=True,
-            max_width=self.plot_width_max,
-            xlabel="",
-        )
-
-        base_curve = plot_fn(shared_axes=True)
-
-        # Decide if datashader is needed
-        use_datashader = len(ch_data) > DATASHADE_THRESHOLD
-
-        if use_datashader:
-            # Wrap base curve in a DynamicMap so datashader stays dynamic
-            # dmap = hv.DynamicMap(lambda: base_curve)
-
-            # Apply datashader dynamically
-            shaded = datashade(
-                base_curve,
-                aggregator="any",
-                height=self.plot_height,
-            )
-
-            # Hover overlay (static decimated curve)
-            hover_curve = decimate(base_curve).opts(
-                color=color,
-                line_width=1.5,
-                tools=["hover"],
-            )
-
-            # Combine dynamic raster + static hover
-            curve = shaded * hover_curve
-
-        else:
-            # No datashader needed
-            curve = base_curve.opts(color=color, tools=["hover"])
-
-        # Styling
-        curve = curve.opts(
+            color=color,
+            tools=["hover"],
             show_grid=True,
             gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
             xticks=20,
         )
 
-        # IMPORTANT: return the HoloViews object directly, not a Pane
-        # Wrapping in a Pane freezes dynamic behavior.
-        return pn.pane.HoloViews(
-            curve,
-            sizing_mode="stretch_width",
-            max_width=self.plot_width_max,
-        )
+        return curve
+
+    # def _make_channel_pane(self, ch_data, ch_key, color_index):
+    #     """
+    #     Return a raw HoloViews curve (no datashader here).
+    #     Datashader is applied later at the row level so that
+    #     all channels in the row share one DynamicMap.
+    #     """
+
+    #     color = self._get_channel_color(ch_key, color_index)
+    #     self.channel_colors[ch_key] = color
+
+    #     if len(ch_data) > DATASHADE_THRESHOLD:
+    #         self.use_datashader = True
+    #         print(
+    #             f"Channel {ch_key} exceeds datashade threshold with {len(ch_data)} points. Using datashader."
+    #         )
+
+    #     plot_fn = hvplot.hvPlot(
+    #         ch_data,
+    #         height=self.plot_height,
+    #         cmap=self.colormap,
+    #         ylabel=getattr(ch_data, "units", ""),
+    #         title=ch_key,
+    #         responsive=True,
+    #         max_width=self.plot_width_max,
+    #         xlabel="",
+    #     )
+
+    #     base_curve = plot_fn(shared_axes=True).opts(
+    #         color=color,
+    #         tools=["hover"],
+    #         show_grid=True,
+    #         gridstyle={"grid_line_color": "lightgray", "grid_line_alpha": 0.5},
+    #         xticks=20,
+    #     )
+
+    #     # IMPORTANT: return the raw curve, not a pane
+    #     return pn.pane.HoloViews(
+    #         base_curve,
+    #         sizing_mode="stretch_width",
+    #         max_width=self.plot_width_max,
+    #     )
 
     def _init_row_assignments(self):
-        keys = list(self.plot_panes.keys())
+        keys = list(self.plot_channel_curves.keys())
         if not self.subplot_row_assignments or set(
             self.subplot_row_assignments.keys()
         ) != set(keys):
@@ -580,7 +591,7 @@ class Tsvi(param.Parameterized):
 
     def _update_subplot_row_selectors(self):
         self.subplot_row_panel.clear()
-        keys = list(self.plot_panes.keys())
+        keys = list(self.plot_channel_curves.keys())
         n = len(keys)
         row_options = [str(i + 1) for i in range(n)]
 
@@ -605,14 +616,14 @@ class Tsvi(param.Parameterized):
             self.subplot_row_panel.append(row)
 
     def _reset_ordering(self, event=None):
-        keys = list(self.plot_panes.keys())
+        keys = list(self.plot_channel_curves.keys())
         self.subplot_row_assignments = {k: i + 1 for i, k in enumerate(keys)}
         self._ordering_version += 1
         self._update_subplot_row_selectors()
         self._render_plots()
 
     def _render_plots(self):
-        if not self.plot_panes:
+        if not self.plot_channel_curves:
             self.graphs.objects = []
             return
 
@@ -628,20 +639,53 @@ class Tsvi(param.Parameterized):
             if not keys:
                 continue
 
-            if not self.combine_subplots or len(keys) == 1:
-                panes.append(self.plot_panes[keys[0]])
-            else:
-                hv_objs = [self.plot_panes[k].object for k in keys]
+            # Collect raw curves
+            hv_objs = {k: self.plot_channel_curves[k] for k in keys}
+            overlay_raw = hv.NdOverlay(hv_objs, kdims="channel")
 
-                # Build overlay and collate to merge DynamicMaps correctly
-                overlay = hv.Overlay(hv_objs).collate()
+            # Determine if datashader is needed for this row
+            use_datashader = any(
+                len(self.data_dict[k.rsplit(".", 1)[0]]) > DATASHADE_THRESHOLD
+                for k in keys
+            )
 
-                pane = pn.pane.HoloViews(
-                    overlay,
-                    sizing_mode="stretch_width",
-                    max_width=self.plot_width_max,
+            if use_datashader:
+                color_key = {k: self.channel_colors[k] for k in keys}
+
+                shaded = datashade(
+                    overlay_raw,
+                    aggregator="any",
+                    height=self.plot_height,
+                    color_key=color_key,
                 )
-                panes.append(pane)
+
+                # Build hover overlay safely
+                hover_elems = {}
+                for k, obj in hv_objs.items():
+                    dec = decimate(obj)
+                    if dec is not None:
+                        hover_elems[k] = dec.opts(
+                            tools=["hover"],
+                            line_width=1.5,
+                            color=self.channel_colors[k],
+                        )
+
+                hover_overlay = (
+                    hv.NdOverlay(hover_elems, kdims="channel") if hover_elems else None
+                )
+                final = shaded * hover_overlay if hover_overlay else shaded
+
+            else:
+                final = overlay_raw
+
+            final = final.opts(frame_width=self.plot_width_max)
+
+            pane = pn.pane.HoloViews(
+                final,
+                sizing_mode="stretch_width",
+                max_width=self.plot_width_max,
+            )
+            panes.append(pane)
 
         column = pn.Column(
             *panes,
@@ -664,7 +708,7 @@ class Tsvi(param.Parameterized):
     # =========================================================
     def clear_plots(self, event=None):
         self.data_dict = {}
-        self.plot_panes = {}
+        self.plot_channel_curves = {}
         self.datashade_cache = {}
         self.subplot_row_assignments = {}
         self.graphs.objects = []
