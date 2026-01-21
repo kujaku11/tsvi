@@ -28,7 +28,7 @@ xarray.set_options(keep_attrs=True)
 # --------------------------------------------------------------
 # Global Constants
 # --------------------------------------------------------------
-DATASHADE_THRESHOLD = 500_000
+DATASHADE_THRESHOLD = 1_000_000
 
 CH_SUMMARY_DISPLAY_COLUMNS = [
     "survey",
@@ -603,7 +603,10 @@ class Tsvi(param.Parameterized):
         self._render_plots()
 
     def _get_length(self, key):
-        data = self.data_dict[key.rsplit(".", 1)[0]]
+        try:
+            data = self.data_dict[key.rsplit(".", 1)[0]]
+        except KeyError:
+            data = self.data_dict[key]
         if isinstance(data, xarray.DataArray):
             return len(data)
         elif isinstance(data, xarray.Dataset):
@@ -645,10 +648,20 @@ class Tsvi(param.Parameterized):
                     ys = ys * 0  # flat line if constant
 
                 # Clone with unified vdims for datashading
-                unified = hv.Curve((xs, ys), kdims=["time"], vdims=["amplitude"]).opts(
-                    color=self.channel_colors[k],
-                    title=k,
-                )
+                if use_datashader:
+                    unified = hv.Curve(
+                        (xs, ys), kdims=["time"], vdims=["amplitude"]
+                    ).opts(
+                        color=self.channel_colors[k],
+                        title=k,
+                    )
+                else:
+                    unified = hv.Curve(
+                        (xs, ys), kdims=["time"], vdims=curve.vdims
+                    ).opts(
+                        color=self.channel_colors[k],
+                        title=k,
+                    )
                 hv_objs[k] = unified
 
             overlay_raw = hv.NdOverlay(hv_objs, kdims="channel").opts(
