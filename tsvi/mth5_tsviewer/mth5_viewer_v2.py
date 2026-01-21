@@ -17,11 +17,6 @@ from bokeh.palettes import Viridis256
 from mth5.mth5 import MTH5
 from mth5 import CHANNEL_DTYPE, RUN_SUMMARY_DTYPE
 
-from tsvi.mth5_tsviewer.helpers import (
-    cpu_usage_widget,
-    memory_usage_widget,
-)
-
 hv.extension("bokeh")
 xarray.set_options(keep_attrs=True)
 
