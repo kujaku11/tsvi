@@ -17,6 +17,8 @@ from bokeh.palettes import Viridis256
 from mth5.mth5 import MTH5
 from mth5 import CHANNEL_DTYPE, RUN_SUMMARY_DTYPE
 
+import time
+
 hv.extension("bokeh")
 xarray.set_options(keep_attrs=True)
 
@@ -150,6 +152,8 @@ class Tsvi(param.Parameterized):
 
         self.run_or_channel_checkbox = pn.widgets.Checkbox(name="Pick Runs", value=True)
         self.run_or_channel_checkbox.param.watch(self._on_choose_runs_checkbox, "value")
+        
+        self.calibrate_checkbox = pn.widgets.Checkbox(name="Calibrate", value=True)
 
         self.show_hover_checkbox = pn.widgets.Checkbox(
             name="Show Hover Overlay", value=False
@@ -253,6 +257,7 @@ class Tsvi(param.Parameterized):
             self.cpu_usage,
             self.memory_usage,
             self.run_or_channel_checkbox,
+            self.calibrate_checkbox, 
             self.subtract_mean_checkbox,
             self.combine_subplots_checkbox,
             self.normalize_checkbox,
@@ -413,6 +418,7 @@ class Tsvi(param.Parameterized):
         """
         Build self.data_dict: key -> xarray object
         """
+        t1 = time.perf_counter(), time.process_time()
         out_dict = {}
         self.datashade_cache = {}
 
@@ -422,7 +428,10 @@ class Tsvi(param.Parameterized):
                     m.open_mth5(mth5_fn, mode="r")
                     for run_hdf5_path in runs:
                         run = m.from_reference(run_hdf5_path)
-                        data = run.to_runts().dataset
+                        run_ts = run.to_runts()
+                        if self.calibrate_checkbox:
+                            run_ts.calibrate()
+                        data = run_ts.dataset
                         run_key = (
                             f"{run.survey_metadata.id}."
                             f"{run.station_metadata.id}."
@@ -445,6 +454,8 @@ class Tsvi(param.Parameterized):
                         out_dict[ch_key] = data
 
         self.data_dict = out_dict
+        t2 = time.perf_counter(), time.process_time()
+        print(f" Dictionary built in: {t2[0] - t1[0]:.2f} seconds")
 
     # =========================================================
     # Color logic
@@ -504,6 +515,7 @@ class Tsvi(param.Parameterized):
         Build or update per-channel curves in self.plot_channel_curves
         based on self.data_dict and current settings.
         """
+        t1 = time.perf_counter(), time.process_time()
         self.plot_channel_curves = {}
         keys = list(self.data_dict.keys())
 
@@ -528,7 +540,8 @@ class Tsvi(param.Parameterized):
                 curve = self._make_channel_curve(data, key, color_index)
                 self.plot_channel_curves[key] = curve
         self._init_row_assignments()
-
+        t2 = time.perf_counter(), time.process_time()
+        print(f" Plots generated in: {t2[0] - t1[0]:.2f} seconds")
     def _make_channel_curve(self, ch_data, ch_key, color_index):
         """
         Return a pure HoloViews Curve (no datashader, no Pane).
