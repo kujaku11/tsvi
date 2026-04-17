@@ -1,5 +1,4 @@
 import pathlib
-from turtle import color
 import pandas as pd
 import panel as pn
 import param
@@ -53,8 +52,14 @@ RUN_SUMMARY_DISPLAY_COLUMNS = [
 
 COLORMAP = "Magma"
 
+TEMPLATE_KEY = "bootstrap"  # "golden" was default but was not working 17 Apr 2026
 
-def get_templates_dict():
+def get_templates_dict()-> dict:
+    """
+    Returns a dictionary of available Panel templates.
+
+    Panel templates are used to define the layout and styling of a Panel application.  
+    """
     templates = {}
     templates["bootstrap"] = pn.template.BootstrapTemplate
     templates["fast"] = pn.template.FastListTemplate
@@ -90,8 +95,7 @@ class Tsvi(param.Parameterized):
         # -------------------------
         # Template
         # -------------------------
-        template_key = "golden"
-        self.template = get_templates_dict()[template_key](title="TSVI")
+        self.template = get_templates_dict()[TEMPLATE_KEY](title="TSVI")
 
         # -------------------------
         # Data state
