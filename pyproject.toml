@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "tsvi"
 version = "0.0.1"
 authors = [
-    { name = "" },
+    { name = "MTH5 development team", email = "jpeacock@usgs.gov" },
 ]
 description = ""
 readme = "README.md"
